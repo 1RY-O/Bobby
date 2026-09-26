@@ -17,9 +17,9 @@ const LENS_DIVE_MS = 550;
  *
  * "ENTER EXPERIENCE" starts a lightning-strike handoff: the dashboard is
  * mounted *underneath* the landing page first, then the landing is struck
- * through the lens (blinding Monster-white flash, scale 1 -> 3.2, snapping
+ * through the lens (blinding white flash, scale 1 -> 3.2, snapping
  * out) while the console snaps into place with a bouncy spring
- * (scale 1.06 -> 1, flashing from white-hot to frozen). Because the console
+ * (scale 1.06 -> 1, flashing from white-hot to clear). Because the console
  * mounts at the start of the animation, its socket is already connecting
  * while the strike plays — the readout is live by the time the user lands.
  *

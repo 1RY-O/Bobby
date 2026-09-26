@@ -69,7 +69,7 @@ function resolveTone(entry: AgentLog): Tone {
   return "idle";
 }
 
-/** Directive palette: monster silver → axe green → angry-birds rage red. */
+/** Directive palette: silver → neon green → rage red. */
 const TONE_TEXT: Record<Tone, string> = {
   idle: "text-[#e2e8f0]/45",
   active: "text-white",
@@ -268,7 +268,7 @@ export default function AgentTerminal({
       >
         {logs.length === 0 ? (
           <div className="flex h-full items-center justify-center gap-2.5 text-center text-[10px] font-bold tracking-[0.3em] text-[#e2e8f0]/40 uppercase">
-            <span className="font-medium">❄ awaiting thunder telemetry</span>
+            <span className="font-medium">awaiting agent telemetry</span>
             <span className="caret-blink">▍</span>
           </div>
         ) : (

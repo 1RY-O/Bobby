@@ -85,7 +85,7 @@ const initialNodes: Node<AgentNodeData>[] = [
   },
 ];
 
-/** Dotted connectors — caffeinated axe/thunder electric rails. */
+/** Dotted connectors — neon electric rails. */
 const initialEdges: Edge[] = [
   {
     id: "e-orchestrator-investigator",
@@ -482,10 +482,9 @@ export default function NexusDashboard() {
               <span className="display-sub text-[#00f0ff] drop-shadow-[0_0_12px_rgba(0,240,255,0.5)]">Workflow</span>
             </h1>
             <p className="body-luxe mt-4 max-w-xl text-[14px] text-[#e2e8f0]/60">
-              ⚡ Caffeinated agent pipeline frozen at{" "}
-              <span className="font-semibold text-[#39ff14]">-273°C</span>.
-              Orchestrate investigation and autonomous remediation from a
-              single thunder-glass console.
+              AI-powered developer agent pipeline. Orchestrate investigation
+              and autonomous remediation from a single high-performance
+              console.
             </p>
           </div>
 
@@ -517,8 +516,8 @@ export default function NexusDashboard() {
               <span className="h-2.5 w-2.5 rounded-full bg-[#e2e8f0]/80" />
               <span className="h-2.5 w-2.5 rounded-full bg-[#39ff14]/90 shadow-[0_0_8px_rgba(57,255,20,0.7)]" />
               <span className="ml-4 font-mono text-[10px] font-bold tracking-[0.28em] text-[#e2e8f0]/70 uppercase">
-                agent-pipeline <span className="text-[#39ff14]">{"//"}</span> frozen-sandbox{" "}
-                <span className="text-[#00f0ff]">❄</span>
+                agent-pipeline <span className="text-[#39ff14]">{"//"}</span>{" "}
+                secure-sandbox
               </span>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
@@ -743,7 +742,7 @@ export default function NexusDashboard() {
             onClear={clearLogs}
           />
 
-          {/* Footer strip — one caffeinated status card per agent. */}
+          {/* Footer strip — one status card per agent. */}
           <div className="legend-carousel grid grid-cols-1 gap-3 border-t border-white/20 bg-white/[0.015] px-5 py-5 sm:grid-cols-2 sm:px-7 lg:grid-cols-4">
             {agentLegend.map((item) => {
               const isActive = item.id === activeNodeId;
@@ -777,7 +776,7 @@ export default function NexusDashboard() {
         </main>
 
         <p className="mt-2 hidden text-center font-mono text-[10px] font-bold tracking-[0.32em] text-[#e2e8f0]/50 uppercase sm:block">
-          ⚡ Drag nodes — Scroll to zoom — <span className="text-[#39ff14]">frozen thunder</span> console ❄
+          ⚡ Drag nodes — Scroll to zoom — high-performance console
         </p>
         <p className="mt-2 text-center font-mono text-[10px] font-bold tracking-[0.32em] text-[#e2e8f0]/50 uppercase sm:hidden">
           Tap nodes — Pinch to zoom

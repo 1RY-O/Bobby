@@ -115,7 +115,7 @@ export default function TelemetryStrip({
           ))}
         </div>
         <p className="font-mono text-[9px] font-bold tracking-[0.22em] text-[#e2e8f0]/40 uppercase">
-          {frames} frames {"//"} caffeinated
+          {frames} frames {"//"} processed
         </p>
       </div>
 
@@ -134,7 +134,7 @@ export default function TelemetryStrip({
           ))}
         </div>
         <p className="font-mono text-[9px] font-bold tracking-[0.22em] text-[#e2e8f0]/40 uppercase">
-          wss <span className="text-[#39ff14]">{"//"}</span> frozen-shield
+          wss <span className="text-[#39ff14]">{"//"}</span> secure-channel
         </p>
       </div>
 
