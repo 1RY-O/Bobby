@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-
 export interface LandingHeroProps {
   /** Hands off to the NEXUS console (POST /api/start-workflow + ws stream). */
   onEnter: () => void;
@@ -14,10 +12,9 @@ const FOOTER_TAGS = ["⚡ AI-POWERED", "ORCHESTRATE", "IBM BOB 2.0"] as const;
 /**
  * Fully static landing page.
  *
- * The artwork is a single preloaded PNG (`public/P2.png`) painted by
- * `next/image`; every highlight on top of it is a CSS gradient. There is no
- * canvas, no WebGL, no animation library and no client-side measure pass, so
- * the server HTML and the first client render are byte-identical.
+ * Bespoke pure-CSS "Obsidian Carbon" backdrop — no image, no canvas, no
+ * WebGL, no animation library and no client-side measure pass, so the
+ * server HTML and the first client render are byte-identical.
  */
 export default function LandingHero({ onEnter, isEntering }: LandingHeroProps) {
   return (
@@ -25,14 +22,7 @@ export default function LandingHero({ onEnter, isEntering }: LandingHeroProps) {
       aria-label="IBM BOB 2.0 Hackathon — enter the NEXUS console"
       className={`landing-shell ${isEntering ? "landing-diving" : ""}`}
     >
-      <Image
-        src="/P2.png"
-        alt=""
-        fill
-        preload
-        sizes="100vw"
-        className="landing-art"
-      />
+      <div aria-hidden className="landing-obsidian" />
       <div aria-hidden className="landing-veil" />
       <div aria-hidden className="landing-grid" />
       <div aria-hidden className="landing-iso" />

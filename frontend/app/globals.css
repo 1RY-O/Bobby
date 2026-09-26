@@ -226,14 +226,38 @@ body {
     );
   }
 
-  /* ============ LANDING ============ */
+  /* ============ LANDING — Obsidian Carbon bespoke backdrop ============ */
   .landing-shell {
     position: fixed;
     inset: 0;
     z-index: 30;
     overflow: hidden;
-    background: var(--space-void);
+    background: linear-gradient(180deg, #050505 0%, #070708 48%, #0a0a0a 100%);
     will-change: transform, opacity;
+  }
+
+  /* Obsidian Carbon base: deep carbon weave + brushed-metal top light */
+  .landing-obsidian {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(90% 60% at 50% 0%, rgba(226, 232, 240, 0.05), transparent 65%),
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.55) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(90deg, rgba(226, 232, 240, 0.022) 0 1px, transparent 1px 5px),
+      linear-gradient(180deg, #050505 0%, #070708 48%, #0a0a0a 100%);
+  }
+
+  .landing-obsidian::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 22%),
+      radial-gradient(70% 28% at 50% 0%, rgba(226, 232, 240, 0.06), transparent 70%);
+    mix-blend-mode: overlay;
   }
 
   .landing-shell::after {
@@ -249,42 +273,50 @@ body {
     mix-blend-mode: overlay;
   }
 
+  /* Retired: landing no longer uses a bitmap — kept hidden so any stale
+     reference can never paint over the Obsidian Carbon backdrop. */
   .landing-art {
-    object-fit: cover;
-    object-position: 50% 45%;
-    filter: brightness(0.72) saturate(1.25) contrast(1.18);
+    display: none !important;
   }
 
+  /* Icy depth veil over carbon: vignette + neon green / thunder blue aura */
   .landing-veil {
     position: absolute;
     inset: 0;
+    z-index: 1;
+    pointer-events: none;
     background:
       radial-gradient(
         112% 104% at 50% 47%,
-        rgba(10, 11, 13, 0) 26%,
-        rgba(10, 11, 13, 0.55) 62%,
-        rgba(10, 11, 13, 0.95) 97%
+        rgba(5, 5, 5, 0) 24%,
+        rgba(5, 5, 5, 0.52) 62%,
+        rgba(5, 5, 5, 0.94) 97%
       ),
-      radial-gradient(60% 36% at 12% 8%, rgba(var(--axe-rgb), 0.1), transparent 70%),
-      radial-gradient(60% 36% at 88% 12%, rgba(var(--thunder-rgb), 0.12), transparent 70%),
+      radial-gradient(58% 38% at 50% 44%, rgba(0, 240, 255, 0.1), transparent 70%),
+      radial-gradient(44% 30% at 50% 46%, rgba(57, 255, 20, 0.08), transparent 70%),
+      radial-gradient(60% 36% at 12% 8%, rgba(var(--axe-rgb), 0.08), transparent 70%),
+      radial-gradient(60% 36% at 88% 12%, rgba(var(--thunder-rgb), 0.1), transparent 70%),
       linear-gradient(
         180deg,
-        rgba(10, 11, 13, 0.68) 0%,
-        rgba(10, 11, 13, 0.1) 36%,
-        rgba(10, 11, 13, 0.8) 100%
+        rgba(5, 5, 5, 0.66) 0%,
+        rgba(5, 5, 5, 0.08) 36%,
+        rgba(5, 5, 5, 0.78) 100%
       );
   }
 
+  /* Faint glowing isometric grid — flat layer (floor perspective lives in .landing-iso) */
   .landing-grid {
     position: absolute;
     inset: 0;
-    opacity: 0.4;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.5;
     background-image:
-      linear-gradient(rgba(var(--axe-rgb), 0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(var(--thunder-rgb), 0.1) 1px, transparent 1px);
+      linear-gradient(rgba(0, 240, 255, 0.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57, 255, 20, 0.09) 1px, transparent 1px);
     background-size: 44px 44px;
-    -webkit-mask-image: radial-gradient(120% 100% at 50% 50%, #000 8%, transparent 74%);
-    mask-image: radial-gradient(120% 100% at 50% 50%, #000 8%, transparent 74%);
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 46%, #000 6%, transparent 74%);
+    mask-image: radial-gradient(120% 100% at 50% 46%, #000 6%, transparent 74%);
   }
 
   .landing-inner {
@@ -949,42 +981,72 @@ body {
     cursor: grabbing;
   }
 
+  /* React Flow attribution watermark — eradicated (dashboard renders
+     proOptions.hideAttribution as well; this is the CSS backstop). */
   .react-flow__attribution {
-    background: transparent;
-    font-size: 10px;
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
   }
 
-  .react-flow__attribution a {
-    color: rgba(226, 232, 240, 0.5);
-  }
-
+  /* Dark frosted-glass control cluster — overrides reactflow/dist/style.css
+     (unlayered library CSS beats @layer, so critical props use !important). */
   .react-flow__controls {
     overflow: hidden;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    background: rgba(8, 10, 12, 0.85);
-    box-shadow: var(--glass-highlight), var(--glow-thunder), 0 12px 32px -20px rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background: rgba(5, 5, 5, 0.7) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 32px -20px rgba(0, 0, 0, 0.9) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
   }
 
   .react-flow__controls-button {
     width: 32px;
     height: 32px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    background: transparent;
-    color: rgba(200, 247, 255, 0.9);
-    transition: background-color 180ms var(--ease-bounce), color 180ms var(--ease-bounce), transform 260ms var(--ease-bounce);
+    border: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+    background: rgba(5, 5, 5, 0.7) !important;
+    color: #e2e8f0 !important;
+    cursor: pointer;
+    transition:
+      background-color 180ms var(--ease-bounce),
+      color 180ms var(--ease-bounce),
+      border-color 180ms var(--ease-bounce),
+      box-shadow 260ms var(--ease-bounce),
+      transform 260ms var(--ease-bounce) !important;
+  }
+
+  .react-flow__controls-button:last-child {
+    border-bottom: none !important;
   }
 
   .react-flow__controls-button svg {
-    fill: currentColor;
+    fill: currentColor !important;
   }
 
+  /* High-octane hover: Axe Neon Green core + Thunder Cyan halo, snappy + bouncy */
   .react-flow__controls-button:hover {
-    background: rgba(var(--axe-rgb), 0.15);
-    color: #ffffff;
-    transform: scale(1.12);
+    background: rgba(57, 255, 20, 0.14) !important;
+    color: #ffffff !important;
+    border-bottom-color: rgba(57, 255, 20, 0.55) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      0 0 14px rgba(57, 255, 20, 0.45),
+      0 0 28px rgba(0, 240, 255, 0.25) !important;
+    transform: scale(1.1) rotate(-1deg) !important;
+  }
+
+  .react-flow__controls-button:active {
+    transform: scale(0.92) !important;
+    transition-duration: 100ms !important;
+  }
+
+  .react-flow__controls-button:focus-visible {
+    outline: none !important;
+    border-bottom-color: rgba(0, 240, 255, 0.7) !important;
+    box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.5), 0 0 18px rgba(0, 240, 255, 0.5) !important;
   }
 
   .react-flow__minimap {
@@ -1495,6 +1557,14 @@ body {
   /* ============ LANDING GLOW-UP — premium awwwards atmosphere (landing only) ============ */
   .landing-inner {
     z-index: 4;
+    isolation: isolate;
+  }
+
+  /* Hero copy + CTA always paint above the carbon / grid / pulse stack */
+  .landing-inner .title-landing,
+  .landing-inner .btn-reactor {
+    position: relative;
+    z-index: 2;
   }
 
   /* Massive, sharp, expensive hero title */
@@ -1532,20 +1602,21 @@ body {
     box-shadow: 0 0 8px rgba(57, 255, 20, 0.6);
   }
 
-  /* Isometric tech floor — faint glowing perspective grid */
+  /* Isometric tech floor — faint, glowing perspective grid (pure linear-gradients) */
   .landing-iso {
     position: absolute;
     inset: auto -20% -12% -20%;
     height: 58%;
     z-index: 1;
     pointer-events: none;
-    opacity: 0.55;
+    opacity: 0.38;
     background-image:
-      linear-gradient(rgba(0, 240, 255, 0.22) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(57, 255, 20, 0.22) 1px, transparent 1px);
+      linear-gradient(rgba(0, 240, 255, 0.16) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57, 255, 20, 0.16) 1px, transparent 1px);
     background-size: 46px 46px;
     transform: perspective(900px) rotateX(63deg);
     transform-origin: 50% 100%;
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.25));
     -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 72%, transparent 100%);
     mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 72%, transparent 100%);
     animation: iso-drift 9s linear infinite;
@@ -1555,8 +1626,9 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(60% 55% at 50% 42%, rgba(0, 240, 255, 0.16), transparent 70%),
-      radial-gradient(42% 40% at 50% 48%, rgba(57, 255, 20, 0.12), transparent 70%);
+    background:
+      radial-gradient(60% 55% at 50% 42%, rgba(0, 240, 255, 0.12), transparent 70%),
+      radial-gradient(42% 40% at 50% 48%, rgba(57, 255, 20, 0.09), transparent 70%);
   }
 
   @keyframes iso-drift {
@@ -1564,7 +1636,8 @@ body {
     to { background-position: 0 46px, 0 0; }
   }
 
-  /* Sleek radial pulse — depth core behind the title */
+  /* Subtle icy radial pulse — Neon Green #39ff14 + Thunder Blue #00f0ff,
+     emanating from behind the hero text for immense depth */
   .landing-pulse {
     position: absolute;
     top: 46%;
@@ -1575,33 +1648,39 @@ body {
     pointer-events: none;
     transform: translate(-50%, -50%);
     background:
-      radial-gradient(circle, rgba(0, 240, 255, 0.14) 0%, rgba(57, 255, 20, 0.07) 28%, transparent 62%),
-      radial-gradient(circle, rgba(226, 232, 240, 0.06) 0%, transparent 55%);
+      radial-gradient(circle, rgba(0, 240, 255, 0.13) 0%, rgba(57, 255, 20, 0.06) 30%, transparent 62%),
+      radial-gradient(circle, rgba(200, 247, 255, 0.05) 0%, transparent 55%);
+    animation: icy-breathe 6s ease-in-out infinite;
+  }
+
+  @keyframes icy-breathe {
+    0%, 100% { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.045); }
   }
 
   .landing-pulse-ring {
     position: absolute;
     inset: 0;
     border-radius: 9999px;
-    border: 1px solid rgba(0, 240, 255, 0.35);
-    box-shadow: 0 0 24px rgba(0, 240, 255, 0.18), inset 0 0 32px rgba(57, 255, 20, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.28);
+    box-shadow: 0 0 24px rgba(0, 240, 255, 0.14), inset 0 0 32px rgba(57, 255, 20, 0.06);
     opacity: 0;
     animation: pulse-ring 5.2s ease-out infinite;
   }
 
   .landing-pulse-ring-2 {
-    border-color: rgba(57, 255, 20, 0.32);
+    border-color: rgba(57, 255, 20, 0.26);
     animation-delay: 1.7s;
   }
 
   .landing-pulse-ring-3 {
-    border-color: rgba(226, 232, 240, 0.25);
+    border-color: rgba(200, 247, 255, 0.2);
     animation-delay: 3.4s;
   }
 
   @keyframes pulse-ring {
     0% { transform: scale(0.28); opacity: 0; }
-    18% { opacity: 0.85; }
+    18% { opacity: 0.7; }
     100% { transform: scale(1); opacity: 0; }
   }
 

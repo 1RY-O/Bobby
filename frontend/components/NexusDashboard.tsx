@@ -711,7 +711,7 @@ export default function NexusDashboard() {
                 fitViewOptions={{ padding: 0.28 }}
                 minZoom={0.4}
                 maxZoom={1.75}
-                proOptions={{ hideAttribution: false }}
+                proOptions={{ hideAttribution: true }}
                 className="!bg-transparent"
               >
                 <Background
