@@ -198,6 +198,20 @@ const WORKFLOW_BUTTON_LABEL: Record<WorkflowStatus, string> = {
 };
 
 /**
+ * Props for the NEXUS agent workflow dashboard.
+ */
+export interface NexusDashboardProps {
+  /**
+   * True once the Lens Dive entrance has settled. While false the root carries
+   * `.glass-frozen`, which drops every backdrop-blur so the panels do not
+   * force a per-pixel re-blur on each frame of the handoff; the static
+   * glassmorphic blur is restored (one recalc) when this flips to true.
+   * Defaults to true so standalone/test mounts render the finished look.
+   */
+  glassActive?: boolean;
+}
+
+/**
  * The NEXUS agent workflow dashboard.
  *
  * Mounted only after the visitor leaves the landing page, so the WebSocket
@@ -205,7 +219,7 @@ const WORKFLOW_BUTTON_LABEL: Record<WorkflowStatus, string> = {
  * looking at the intro. Every visual state is a CSS class — no animation
  * runtime is involved.
  */
-export default function NexusDashboard() {
+export default function NexusDashboard({ glassActive = true }: NexusDashboardProps) {
   const [nodes, setNodes, onNodesChange] =
     useNodesState<AgentNodeData>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -226,6 +240,27 @@ export default function NexusDashboard() {
   // Initialised to `false` on purpose: reading `matchMedia` during render
   // would make the server markup and the first client render disagree.
   const [isPipelineOpen, setIsPipelineOpen] = useState(false);
+
+  /**
+   * Heavy-canvas gate. The shell (header, form, terminal, telemetry) is cheap
+   * DOM and paints on the mount frame so the socket state is visible
+   * immediately, but the full React Flow node tree — measure pass, SVG edges,
+   * MiniMap raster — is held back for two frames. Mounting it on the exact
+   * same tick as the dashboard would contend with the Lens Dive's compositor
+   * frames; the fixed-height placeholder below reserves the identical box so
+   * nothing shifts when the canvas swaps in.
+   */
+  const [canvasReady, setCanvasReady] = useState(false);
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setCanvasReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, []);
 
   // Native WebSocket straight to the LangGraph workflow stream: connect on
   // mount, reconnect with backoff when the socket drops, close on unmount.
@@ -498,7 +533,9 @@ export default function NexusDashboard() {
   );
 
   return (
-    <div className="relative min-h-screen text-[#e2e8f0]">
+    <div
+      className={`relative min-h-screen text-[#e2e8f0]${glassActive ? "" : " glass-frozen"}`}
+    >
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14">
         {/* Mobile sticky CTA: the workflow action stays thumb-reachable. */}
         <div className="sticky top-3 z-20 lg:hidden">
@@ -763,7 +800,16 @@ export default function NexusDashboard() {
               isPipelineOpen ? "block" : "hidden"
             } w-full bg-black/40 sm:block`}
           >
-            {pipelineCanvas}
+            {canvasReady ? (
+              pipelineCanvas
+            ) : (
+              /* Same box the canvas will take — no layout shift on swap-in,
+                 and deliberately unstyled: zero paint work while the dive runs. */
+              <div
+                aria-hidden="true"
+                className="h-[320px] w-full sm:h-[400px] lg:h-[440px]"
+              />
+            )}
           </div>
 
           {/* Live agent log stream */}

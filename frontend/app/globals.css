@@ -233,7 +233,12 @@ body {
     z-index: 30;
     overflow: hidden;
     background: linear-gradient(180deg, #050505 0%, #070708 48%, #0a0a0a 100%);
+    /* Promoted to its own compositor layer at all times: the Lens Dive must
+       start animating on the very next frame after the click, with no
+       layer-promotion hitch on tick zero. */
     will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   /* Obsidian Carbon base: deep carbon weave + brushed-metal top light */
@@ -329,11 +334,17 @@ body {
     padding: clamp(1.5rem, 4vw, 3rem);
     overflow-y: auto;
     animation: landing-spring 800ms var(--ease-bounce) both;
+    /* Own compositor layer so the dive scales this content without
+       re-rasterising it every frame. */
+    will-change: transform, opacity;
+    backface-visibility: hidden;
   }
 
   .landing-diving {
     animation: lens-dive-lightning 550ms cubic-bezier(0.85, 0, 0.15, 1) both;
     pointer-events: none;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
   }
 
   .landing-diving::before {
@@ -354,13 +365,61 @@ body {
 
   .dashboard-land {
     animation: dashboard-snap 650ms var(--ease-bounce) both;
+    /* Own compositor layer for the entrance snap. Released by .is-settled
+       once the handoff completes so the layer (and its backing store) is not
+       held for the whole session. */
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
+  .dashboard-land.is-settled {
+    /* will-change is not an animated property, so this releases the
+       compositor layer even though the `both` fill retains the final
+       (identity) transform keyframe indefinitely. */
+    will-change: auto;
+  }
+
+  /* =====================================================================
+     GLASS FREEZE — backdrop-blur is per-pixel work against whatever is
+     behind the panel, so it re-runs on every frame while anything on screen
+     moves. During the 700 ms handoff the landing is scaling above the
+     dashboard, which would force every glass panel to re-blur continuously.
+     NexusDashboard renders with .glass-frozen on its root until the shell
+     reports the entrance settled; the freeze drops the blur (the gradient
+     backgrounds still read as dark glass), and unfreezing afterwards costs a
+     single recalc instead of ~42 mid-motion ones.
+     ===================================================================== */
+  .glass-frozen .glass-panel,
+  .glass-frozen .glass-panel-immersive,
+  .glass-frozen .glass-card,
+  .glass-frozen .hud-tile,
+  .glass-frozen .terminal-console,
+  .glass-frozen .backdrop-blur-2xl {
+    /* Declaration order mirrors every other backdrop rule in this file
+       (unprefixed first): the minifier keeps the last of the pair, so the
+       compiled output disables blur through `-webkit-backdrop-filter` — the
+       same property the panels themselves blur through after compilation.
+       Freeze parity therefore holds on exactly the engines where blur exists.
+       !important keeps the freeze ahead of any state rule (hover/focus) that
+       re-asserts a filter mid-handoff. */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /*
+   * Lens Dive keyframes — HARD BUDGET: transform (scale3d) + opacity only.
+   *
+   * filter (blur/brightness/saturate) forces a re-raster + repaint of the
+   * whole layer on every frame, which is exactly the jank seen on the click.
+   * The white-hot look the old brightness() stops provided now comes from the
+   * .lens-flash / ::before overlays (opacity-only), which composite for free.
+   */
   @keyframes lens-dive-lightning {
-    0% { transform: scale(1); opacity: 1; filter: blur(0) brightness(1); }
-    28% { transform: scale(1.04); opacity: 1; filter: blur(0) brightness(2.2) saturate(0); }
-    46% { transform: scale(1.12); opacity: 1; filter: blur(2px) brightness(3.5) saturate(0); }
-    100% { transform: scale(3.2); opacity: 0; filter: blur(18px) brightness(2) saturate(1.4); }
+    0% { transform: scale3d(1, 1, 1); opacity: 1; }
+    28% { transform: scale3d(1.04, 1.04, 1); opacity: 1; }
+    46% { transform: scale3d(1.12, 1.12, 1); opacity: 1; }
+    100% { transform: scale3d(3.2, 3.2, 1); opacity: 0; }
   }
 
   @keyframes monster-flash {
@@ -372,17 +431,17 @@ body {
   }
 
   @keyframes lens-dive-content {
-    0% { transform: scale(1); opacity: 1; }
-    40% { opacity: 1; transform: scale(1.02); }
-    100% { transform: scale(5); opacity: 0; }
+    0% { transform: scale3d(1, 1, 1); opacity: 1; }
+    40% { opacity: 1; transform: scale3d(1.02, 1.02, 1); }
+    100% { transform: scale3d(5, 5, 1); opacity: 0; }
   }
 
   @keyframes dashboard-snap {
-    0% { opacity: 0; transform: scale(1.06) translateY(18px); filter: brightness(3) saturate(0); }
-    35% { opacity: 1; transform: scale(0.98) translateY(-4px); filter: brightness(1.6); }
-    60% { transform: scale(1.01) translateY(2px); filter: brightness(1); }
-    80% { transform: scale(0.999) translateY(-1px); }
-    100% { opacity: 1; transform: none; filter: none; }
+    0% { opacity: 0; transform: scale3d(1.06, 1.06, 1); }
+    35% { opacity: 1; transform: scale3d(0.98, 0.98, 1); }
+    60% { opacity: 1; transform: scale3d(1.01, 1.01, 1); }
+    80% { opacity: 1; transform: scale3d(0.999, 0.999, 1); }
+    100% { opacity: 1; transform: scale3d(1, 1, 1); }
   }
 
   @keyframes landing-spring {
@@ -1634,6 +1693,11 @@ body {
     pointer-events: none;
     background: linear-gradient(180deg, #ffffff, #e2e8f0);
     opacity: 0;
+    /* Opacity-only animation — keep it composited so the flash never waits
+       on a raster pass. */
+    will-change: opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   .landing-diving .lens-flash {

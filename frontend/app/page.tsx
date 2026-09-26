@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 import LandingHero from "@/components/LandingHero";
@@ -12,6 +12,14 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
  * `lens-dive-lightning` and `dashboard-snap` animations in globals.css.
  */
 const LENS_DIVE_MS = 550;
+
+/**
+ * When the dashboard's entrance is considered settled. Must stay past the
+ * `dashboard-snap` 650 ms animation: at this point the shell releases its
+ * compositor layer (.is-settled) and re-enables the static glass blur, so the
+ * unfreeze is one recalc after motion instead of continuous work during it.
+ */
+const DASHBOARD_SETTLE_MS = 700;
 
 /**
  * Single loader instance, deliberately shared.
@@ -42,38 +50,72 @@ const NexusDashboard = dynamic(loadNexusDashboard, {
 /**
  * App shell.
  *
- * "ENTER EXPERIENCE" starts a lightning-strike handoff: the dashboard is
- * mounted *underneath* the landing page first, then the landing is struck
- * through the lens (blinding white flash, scale 1 -> 3.2, snapping
- * out) while the console snaps into place with a bouncy spring
- * (scale 1.06 -> 1, flashing from white-hot to clear). Because the console
- * mounts at the start of the animation, its socket is already connecting
- * while the strike plays — the readout is live by the time the user lands.
+ * "ENTER EXPERIENCE" starts a lightning-strike handoff, staged across frames
+ * so the animation never competes with heavy work on the click tick:
  *
- * The landing unmounts once the animation ends so no off-screen layer keeps
- * painting. Both animations are pure CSS: the only JS here is one state flip
- * plus one timeout. The obsidian-carbon backdrop is painted once, at this
- * level, so it persists across the transition instead of being recreated by
- * each screen.
+ *   tick 0 — flip `isEntering`. This is a class change on an already-layered
+ *     landing shell, so the Lens Dive (transform + opacity only) starts
+ *     compositing on the very next frame with nothing else queued.
+ *   frame ~2 — mount the dashboard shell underneath. Its WebSocket starts
+ *     connecting while the strike plays, but the React Flow canvas itself
+ *     stays deferred one more beat inside NexusDashboard, so the graph's
+ *     measure/layout pass cannot steal the animation's frames either.
+ *   550 ms — the landing unmounts so no off-screen layer keeps painting.
+ *   700 ms — the entrance is settled: the dashboard releases its compositor
+ *     layer and re-enables the static glass blur (one recalc, post-motion).
+ *
+ * The obsidian-carbon backdrop is painted once, at this level, so it persists
+ * across the transition instead of being recreated by each screen.
  */
 export default function Home() {
   const [isEntering, setIsEntering] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
+  const [glassActive, setGlassActive] = useState(false);
+  const frameIds = useRef<number[]>([]);
+  const timerIds = useRef<number[]>([]);
+  const preloadStarted = useRef(false);
+
+  // Hygiene: cancel staged work if the shell ever unmounts mid-handoff.
+  useEffect(
+    () => () => {
+      for (const id of frameIds.current) cancelAnimationFrame(id);
+      for (const id of timerIds.current) window.clearTimeout(id);
+    },
+    [],
+  );
 
   const enter = () => {
     if (isEntering) return;
     setIsEntering(true);
-    window.setTimeout(() => setHasEntered(true), LENS_DIVE_MS);
+    // Double rAF: let the browser paint the first dive frame(s) before the
+    // dashboard shell (and its socket/effects) is even constructed.
+    const first = window.requestAnimationFrame(() => {
+      const second = window.requestAnimationFrame(() => setShowDashboard(true));
+      frameIds.current.push(second);
+    });
+    frameIds.current.push(first);
+    timerIds.current.push(window.setTimeout(() => setHasEntered(true), LENS_DIVE_MS));
+    timerIds.current.push(
+      window.setTimeout(() => setGlassActive(true), DASHBOARD_SETTLE_MS),
+    );
   };
 
   /**
    * Warm the console chunk while the pointer is still approaching the CTA.
-   * Repeat clicks are free — the browser dedupes the in-flight request — and
-   * any rejection is swallowed, because a failed prefetch must never surface
-   * as an unhandled rejection or block the real (retryable) load on click.
+   * Fired from mouse, touch and keyboard intent paths; the module record is
+   * shared with the `dynamic()` loader below, so the first hover pays the
+   * network cost and the click itself resolves from cache. Repeat calls are
+   * free (idempotent guard + bundler dedupe), and any rejection is swallowed,
+   * because a failed prefetch must never surface as an unhandled rejection or
+   * block the real (retryable) load on click.
    */
   const preloadDashboard = useCallback(() => {
-    void loadNexusDashboard().catch(() => undefined);
+    if (preloadStarted.current) return;
+    preloadStarted.current = true;
+    void loadNexusDashboard().catch(() => {
+      preloadStarted.current = false;
+    });
   }, []);
 
   return (
@@ -82,11 +124,13 @@ export default function Home() {
       <div aria-hidden className="grid-overlay" />
       <div aria-hidden className="vignette-overlay" />
 
-      {/* Mounted the instant the dive starts, so it lands already streaming. */}
-      {isEntering && (
-        <div className="dashboard-land relative z-10">
+      {/* Mounted two frames into the dive, so it lands already streaming. */}
+      {showDashboard && (
+        <div
+          className={`dashboard-land relative z-10${glassActive ? " is-settled" : ""}`}
+        >
           <ErrorBoundary label="NEXUS dashboard">
-            <NexusDashboard />
+            <NexusDashboard glassActive={glassActive} />
           </ErrorBoundary>
         </div>
       )}

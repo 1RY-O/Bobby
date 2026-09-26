@@ -6,9 +6,12 @@ export interface LandingHeroProps {
   /** True while the cinematic "Lens Dive" out of the hero is in flight. */
   isEntering: boolean;
   /**
-   * Fired on pointer-enter / focus of the CTA. The NEXUS console is a lazily
-   * loaded chunk, so warming it while the user is still deciding means the
-   * Lens Dive has something real to reveal instead of a skeleton.
+   * Fired on mouse, touch and keyboard intent on the CTA (hover, touch-start,
+   * pointer-enter, focus). The NEXUS console is a lazily loaded chunk, so
+   * warming it while the user is still deciding means the network fetch is
+   * already resolved by the time the click commits — the Lens Dive reveals a
+   * live console instead of a skeleton. Touch-start matters most: on mobile
+   * there is no hover, so it is the only pre-click signal available.
    */
   onIntent?: () => void;
 }
@@ -85,7 +88,9 @@ export default function LandingHero({
           <button
             type="button"
             onClick={onEnter}
+            onMouseEnter={onIntent}
             onPointerEnter={onIntent}
+            onTouchStart={onIntent}
             onFocus={onIntent}
             disabled={isEntering}
             aria-label="Enter the NEXUS console"
