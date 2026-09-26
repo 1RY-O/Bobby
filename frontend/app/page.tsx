@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useState } from "react";
 
+import DashboardSkeleton from "@/components/DashboardSkeleton";
 import LandingHero from "@/components/LandingHero";
-import NexusDashboard from "@/components/NexusDashboard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /**
@@ -11,6 +12,32 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
  * `lens-dive-lightning` and `dashboard-snap` animations in globals.css.
  */
 const LENS_DIVE_MS = 550;
+
+/**
+ * Single loader instance, deliberately shared.
+ *
+ * `dynamic()` and the preload hint must reference the *same* import specifier
+ * so the bundler hands back one module record. Preloading a second, textually
+ * different import would download the chunk twice and warm nothing.
+ */
+const loadNexusDashboard = () => import("@/components/NexusDashboard");
+
+/**
+ * The NEXUS console is code-split because it drags in React Flow — ~176 KB of
+ * the previous initial payload — and a visitor who never presses ENTER
+ * EXPERIENCE should not pay for it. Splitting it also lets the landing page
+ * hydrate and paint on its own, with no third-party graph library in the
+ * critical path.
+ *
+ * `ssr: false` is correct here: the console is a client-only interactive
+ * canvas that opens a WebSocket on mount, so there is nothing meaningful to
+ * server-render and prerendering it would only ship markup that is immediately
+ * discarded.
+ */
+const NexusDashboard = dynamic(loadNexusDashboard, {
+  ssr: false,
+  loading: () => <DashboardSkeleton />,
+});
 
 /**
  * App shell.
@@ -39,6 +66,16 @@ export default function Home() {
     window.setTimeout(() => setHasEntered(true), LENS_DIVE_MS);
   };
 
+  /**
+   * Warm the console chunk while the pointer is still approaching the CTA.
+   * Repeat clicks are free — the browser dedupes the in-flight request — and
+   * any rejection is swallowed, because a failed prefetch must never surface
+   * as an unhandled rejection or block the real (retryable) load on click.
+   */
+  const preloadDashboard = useCallback(() => {
+    void loadNexusDashboard().catch(() => undefined);
+  }, []);
+
   return (
     <div className="relative min-h-screen">
       <div aria-hidden className="abyss-backdrop" />
@@ -57,7 +94,11 @@ export default function Home() {
       {/* The landing stays on top (z-30) while it dives, then unmounts. */}
       {!hasEntered && (
         <ErrorBoundary label="Landing">
-          <LandingHero onEnter={enter} isEntering={isEntering} />
+          <LandingHero
+            onEnter={enter}
+            isEntering={isEntering}
+            onIntent={preloadDashboard}
+          />
         </ErrorBoundary>
       )}
     </div>

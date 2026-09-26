@@ -3,14 +3,65 @@ import type { NextConfig } from "next";
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN ?? "http://localhost:8000";
 
 /**
+ * `next dev` needs eval for React Fast Refresh and inline/eval'd scripts for
+ * the HMR runtime, and it may talk to a backend on any local port. None of that
+ * is acceptable in a production response, so the two directives that carry the
+ * dev-only permissions are built conditionally rather than always shipped.
+ */
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * Backend origin reduced to scheme + host + port, for `connect-src`.
+ *
+ * The browser only ever talks to the backend directly when a NEXT_PUBLIC_*
+ * override bypasses the same-origin proxy. With the default deployment the
+ * page calls same-origin /api and /ws, which 'self' already covers, so nothing
+ * needs to be added. Keeping this conditional stops the policy from quietly
+ * widening to a second origin that the app never actually calls.
+ */
+const CROSS_ORIGIN_BACKEND = (() => {
+  const overridden = Boolean(
+    process.env.NEXT_PUBLIC_WORKFLOW_START_URL ||
+      process.env.NEXT_PUBLIC_AGENT_STREAM_URL,
+  );
+  if (!overridden) return null;
+  try {
+    return new URL(BACKEND_ORIGIN).origin;
+  } catch {
+    return null;
+  }
+})();
+
+const CONNECT_SRC = [
+  "'self'",
+  ...(CROSS_ORIGIN_BACKEND ? [CROSS_ORIGIN_BACKEND] : []),
+  // Dev additionally needs raw-scheme sockets and HMR on an ephemeral port.
+  ...(IS_PRODUCTION
+    ? []
+    : [
+        "ws:",
+        "http:",
+        "https:",
+        "http://localhost:*",
+        "https://localhost:*",
+        "http://127.0.0.1:*",
+        "https://127.0.0.1:*",
+      ]),
+].join(" ");
+
+
+/**
  * Defense-in-depth response headers for every route.
  *
  * Notes:
  * - `style-src 'unsafe-inline'` is required by React Flow / Tailwind runtime
- *   inline styles; `script-src 'unsafe-eval'` keeps Next dev HMR working.
- * - `connect-src` intentionally allows same-origin plus local/dev sockets so
- *   the dashboard can reach the FastAPI backend in development. In production
- *   the app uses same-origin `/api/*` + an explicitly configured `wss:` URL.
+ *   inline styles. It stays in production because the graph positions nodes
+ *   with inline style attributes.
+ * - `script-src` drops `'unsafe-eval'` in production: only `next dev`'s Fast
+ *   Refresh needs it, and eval is a direct XSS-to-RCE primitive.
+ * - `connect-src` is same-origin in production. The browser reaches the API
+ *   through the Next proxy, so no backend host needs to be allowlisted unless
+ *   the app is configured to call the backend cross-origin.
  * - `frame-ancestors 'none'` blocks clickjacking by refusing to be iframed.
  */
 const SECURITY_HEADERS = [
@@ -21,19 +72,27 @@ const SECURITY_HEADERS = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), payment=()",
   },
-  {
-    key: "Strict-Transport-Security",
-    value: "max-age=63072000; includeSubDomains; preload",
-  },
+  // HSTS is ignored by browsers over plain http, so it is only sent in
+  // production where the deployment is expected to be behind TLS.
+  ...(IS_PRODUCTION
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ]
+    : []),
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // 'unsafe-inline' covers the small inline bootstrap Next emits; the
+      // nonce/hash route is not available without a custom server here.
+      `script-src 'self' 'unsafe-inline'${IS_PRODUCTION ? "" : " 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' ws: wss: http://localhost:* https://localhost:* http://127.0.0.1:* https://127.0.0.1:*",
+      `connect-src ${CONNECT_SRC}`,
       "worker-src 'self' blob:",
       "base-uri 'self'",
       "form-action 'self'",

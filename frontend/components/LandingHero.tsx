@@ -5,6 +5,12 @@ export interface LandingHeroProps {
   onEnter: () => void;
   /** True while the cinematic "Lens Dive" out of the hero is in flight. */
   isEntering: boolean;
+  /**
+   * Fired on pointer-enter / focus of the CTA. The NEXUS console is a lazily
+   * loaded chunk, so warming it while the user is still deciding means the
+   * Lens Dive has something real to reveal instead of a skeleton.
+   */
+  onIntent?: () => void;
 }
 
 const FOOTER_TAGS = ["⚡ AI-POWERED", "ORCHESTRATE", "IBM BOB 2.0"] as const;
@@ -16,7 +22,11 @@ const FOOTER_TAGS = ["⚡ AI-POWERED", "ORCHESTRATE", "IBM BOB 2.0"] as const;
  * WebGL, no animation library and no client-side measure pass, so the
  * server HTML and the first client render are byte-identical.
  */
-export default function LandingHero({ onEnter, isEntering }: LandingHeroProps) {
+export default function LandingHero({
+  onEnter,
+  isEntering,
+  onIntent,
+}: LandingHeroProps) {
   return (
     <section
       aria-label="IBM BOB 2.0 Hackathon — enter the NEXUS console"
@@ -75,6 +85,8 @@ export default function LandingHero({ onEnter, isEntering }: LandingHeroProps) {
           <button
             type="button"
             onClick={onEnter}
+            onPointerEnter={onIntent}
+            onFocus={onIntent}
             disabled={isEntering}
             aria-label="Enter the NEXUS console"
             className="btn-enter btn-reactor frost-sheen mt-2"

@@ -392,6 +392,132 @@ body {
     100% { opacity: 1; transform: none; }
   }
 
+  /* =========================================================================
+     DASHBOARD BOOT SKELETON
+     Shown while the code-split NexusDashboard chunk (React Flow ~176 KB)
+     downloads. Uses the same glass + neon vocabulary as the real console so
+     the handoff reads as the console powering up, not as a loading spinner.
+     `dashboard-land` already applies the snap animation to the wrapper, so the
+     skeleton participates in the Lens Dive for free.
+     ========================================================================= */
+  .boot-skeleton {
+    display: grid;
+    gap: 14px;
+    padding: clamp(16px, 3vw, 28px);
+    min-height: 100vh;
+    align-content: start;
+  }
+
+  .boot-skeleton__bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: var(--glass-fill);
+    border: 1px solid rgba(var(--silver-rgb), 0.14);
+    box-shadow: var(--glass-highlight), var(--glass-frost);
+  }
+
+  .boot-skeleton__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--axe-green);
+    box-shadow: var(--glow-axe);
+    animation: boot-pulse 1.15s var(--ease-drift) infinite;
+  }
+
+  .boot-skeleton__line {
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(
+      90deg,
+      rgba(var(--silver-rgb), 0.08) 0%,
+      rgba(var(--silver-rgb), 0.22) 50%,
+      rgba(var(--silver-rgb), 0.08) 100%
+    );
+    background-size: 200% 100%;
+    animation: boot-shimmer 1.6s linear infinite;
+  }
+
+  .boot-skeleton__canvas {
+    position: relative;
+    height: clamp(240px, 46vh, 420px);
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(var(--silver-rgb), 0.13) 1px, transparent 0)
+      0 0 / 26px 26px,
+      var(--glass-fill);
+    border: 1px solid rgba(var(--silver-rgb), 0.12);
+    box-shadow: var(--glass-highlight), var(--glass-frost), var(--glass-shade);
+  }
+
+  .boot-skeleton__node {
+    position: absolute;
+    width: 30%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--glass-fill-strong);
+    border: 1px solid rgba(var(--thunder-rgb), 0.28);
+    box-shadow: var(--glow-thunder);
+  }
+
+  /* A single sweeping highlight reads as "scanning" without a spinner. */
+  .boot-skeleton__canvas::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 35%,
+      rgba(var(--thunder-rgb), 0.14) 50%,
+      transparent 65%
+    );
+    animation: boot-sweep 2.1s var(--ease-drift) infinite;
+  }
+
+  .boot-skeleton__row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .boot-skeleton__chip {
+    height: 26px;
+    flex: 1 1 120px;
+    border-radius: var(--radius-pill);
+    background: var(--glass-fill);
+    border: 1px solid rgba(var(--silver-rgb), 0.12);
+  }
+
+  @keyframes boot-pulse {
+    0%, 100% { opacity: 0.35; transform: scale(0.82); }
+    50% { opacity: 1; transform: scale(1.18); }
+  }
+
+  @keyframes boot-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @keyframes boot-sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Respect users who asked the OS to stop animations. */
+  @media (prefers-reduced-motion: reduce) {
+    .boot-skeleton__dot,
+    .boot-skeleton__line,
+    .boot-skeleton__canvas::after {
+      animation: none;
+    }
+    .boot-skeleton__line { opacity: 0.5; }
+    .boot-skeleton__canvas::after { opacity: 0.35; }
+  }
+
   /* Brushed-steel metallic display — silver gradient gleam, sharp + expensive */
   .title-metallic {
     background: linear-gradient(
@@ -1792,5 +1918,86 @@ body {
   @keyframes reactor-core-blink {
     0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
     50% { opacity: 0.55; transform: translateY(-50%) scale(0.72); }
+  }
+}
+
+/* ==========================================================================
+   CROSS-BROWSER / CROSS-ENGINE FALLBACKS
+   Appended last so these win on source order over the Tailwind utilities and
+   the component styles above. None of them change the design on a modern
+   engine — they only stop the layout from breaking on one that lacks a
+   feature the glass/neon look is built on.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Dynamic viewport height.
+
+   `100vh` is the viewport height measured with the browser chrome *hidden*.
+   On iOS Safari and Chrome Android the toolbar then expands and the extra
+   space pushes the bottom of the page under the UI, so the console is taller
+   than the screen and the last row has to be scrolled past. `dvh` tracks the
+   chrome as it moves.
+
+   Declared as a plain override rather than inside @supports: an engine that
+   does not know `dvh` drops that one declaration and keeps the `vh` above it.
+   Safari 15.4+ / Chrome 108+ get the correct behaviour, older ones degrade to
+   today's rendering rather than to nothing.
+   -------------------------------------------------------------------------- */
+@supports (min-height: 100dvh) {
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .boot-skeleton {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. Frosted glass without `backdrop-filter`.
+
+   `--glass-fill` is 6% white. On an engine with no backdrop blur that is
+   effectively a transparent panel, so the animated Obsidian Carbon backdrop
+   shows straight through the cards and body copy loses contrast against the
+   neon beams. Engines *without* the filter get an opaque surface instead —
+   the frost, the border and the glow all still read, and legibility is
+   preserved. Engines *with* the filter are untouched above.
+   -------------------------------------------------------------------------- */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    /* Opaque enough to clear WCAG AA for the silver body text behind it. */
+    --glass-fill: rgba(10, 11, 13, 0.82);
+    --glass-fill-strong: rgba(14, 16, 19, 0.9);
+    --glass-fill-hover: rgba(20, 23, 27, 0.94);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. Engines that cannot composite `mix-blend-mode` over a backdrop-filter
+   layer render the element fully opaque. Force the blend elements back to
+   normal compositing rather than inheriting an unreadable solid.
+   -------------------------------------------------------------------------- */
+@supports not (mix-blend-mode: screen) {
+  .landing-pulse-ring,
+  .landing-beams,
+  .landing-iso {
+    opacity: 0.5;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. Scrollbars.
+
+   Chromium is styled via ::-webkit-scrollbar, Firefox via scrollbar-width.
+   Safari gets neither and falls back to a platform overlay scrollbar, which
+   is fine on iOS but a chunky default on desktop. Give the two scrollable
+   regions a neutral thumb without overriding the styled engines.
+   -------------------------------------------------------------------------- */
+@supports not (selector(::-webkit-scrollbar)) {
+  .terminal-scroll {
+    scrollbar-color: rgba(226, 232, 240, 0.3) transparent;
+    scrollbar-width: thin;
   }
 }

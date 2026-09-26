@@ -31,7 +31,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
+# The root .gitignore owns this rule for the whole repo; the negations are
+# repeated here because these patterns live in a subdirectory .gitignore, and
+# a deeper file cannot re-include a path a parent file excluded.
 .env*
+!.env.example
+!.env.*.example
+!.env.template
 
 # vercel
 .vercel

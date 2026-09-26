@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -389,8 +389,26 @@ export default function NexusDashboard() {
   const isStarting = workflowStatus === "starting";
   const repoUrlHintId = "repo-url-hint";
   const issueHintId = "issue-description-hint";
-  const trimmedRepoUrl = repoUrl.trim();
-  const trimmedIssueDescription = issueDescription.trim();
+
+  /**
+   * Typing responsiveness.
+   *
+   * The two fields are high-frequency inputs, and every keystroke used to
+   * re-render this entire 788-line tree — including the React Flow canvas.
+   * Splitting the value from its *derived* state lets React keep the
+   * controlled input itself at urgent priority (the caret never lags) while
+   * the validity colours, the character counters and the submit gate settle
+   * in a low-priority render that is dropped entirely if the user keeps typing.
+   *
+   * The submitted payload deliberately still reads the immediate values: a
+   * deferred trailing edge must never be able to POST a half-typed string.
+   */
+  const deferredRepoUrl = useDeferredValue(repoUrl);
+  const deferredIssueDescription = useDeferredValue(issueDescription);
+
+  const trimmedRepoUrl = deferredRepoUrl.trim();
+  const trimmedIssueDescription = deferredIssueDescription.trim();
+
   // Basic shape gate: GitHub owner/repo URLs only (the server still validates).
   const isRepoUrlShapeValid =
     trimmedRepoUrl.length > 0 && REPO_URL_PATTERN.test(trimmedRepoUrl);
@@ -432,6 +450,52 @@ export default function NexusDashboard() {
   const onConnect = useCallback(() => {
     // Placeholder: keep the static demo topology for now
   }, []);
+
+  /**
+   * The graph is memoised on its own inputs. It is by far the most expensive
+   * subtree in this component, and it has no reason to re-render when the user
+   * types in the form above it: the nodes and edges only change when an agent
+   * event arrives. The object literals (proOptions / fitViewOptions / style)
+   * also stop being recreated on every keystroke, which React Flow would
+   * otherwise re-diff on every render.
+   */
+  const pipelineCanvas = useMemo(
+    () => (
+      <div className="h-[320px] w-full sm:h-[400px] lg:h-[440px]">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          fitView
+          fitViewOptions={{ padding: 0.28 }}
+          minZoom={0.4}
+          maxZoom={1.75}
+          proOptions={{ hideAttribution: true }}
+          className="!bg-transparent"
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={26}
+            size={1.4}
+            color="rgba(57,255,20,0.22)"
+          />
+          <Controls position="bottom-right" showInteractive={false} />
+          <MiniMap
+            position="top-right"
+            pannable
+            zoomable
+            style={{ width: 140, height: 96 }}
+            maskColor="rgba(1,0,10,0.75)"
+            className="hidden sm:block"
+          />
+        </ReactFlow>
+      </div>
+    ),
+    [nodes, edges, onNodesChange, onEdgesChange, onConnect],
+  );
 
   return (
     <div className="relative min-h-screen text-[#e2e8f0]">
@@ -699,38 +763,7 @@ export default function NexusDashboard() {
               isPipelineOpen ? "block" : "hidden"
             } w-full bg-black/40 sm:block`}
           >
-            <div className="h-[320px] w-full sm:h-[400px] lg:h-[440px]">
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                fitView
-                fitViewOptions={{ padding: 0.28 }}
-                minZoom={0.4}
-                maxZoom={1.75}
-                proOptions={{ hideAttribution: true }}
-                className="!bg-transparent"
-              >
-                <Background
-                  variant={BackgroundVariant.Dots}
-                  gap={26}
-                  size={1.4}
-                  color="rgba(57,255,20,0.22)"
-                />
-                <Controls position="bottom-right" showInteractive={false} />
-                <MiniMap
-                  position="top-right"
-                  pannable
-                  zoomable
-                  style={{ width: 140, height: 96 }}
-                  maskColor="rgba(1,0,10,0.75)"
-                  className="hidden sm:block"
-                />
-              </ReactFlow>
-            </div>
+            {pipelineCanvas}
           </div>
 
           {/* Live agent log stream */}

@@ -157,6 +157,29 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local secrets / env files.
+#
+# The bare `.env` rule above only matches that exact filename, so the
+# Next.js-style variants the deploy tooling actually creates -- `.env.local`,
+# `.env.production`, `.env.production.local`, `backend/.env.prod` -- were all
+# committable by accident. Match every variant anywhere in the repo, then
+# re-allow the documented templates so operators have something to copy.
+.env.*
+!.env.example
+!.env.*.example
+!.env.template
+!.env.*.template
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*serviceaccount*.json
+sa.json
+gha-creds-*.json
+secrets.yaml
+secrets.yml
+
 # Spyder project settings
 .spyderproject
 .spyproject
