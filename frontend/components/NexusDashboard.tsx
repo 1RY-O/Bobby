@@ -15,6 +15,7 @@ import "reactflow/dist/style.css";
 
 import AgentNode, { type AgentNodeData } from "@/components/AgentNode";
 import AgentTerminal from "@/components/AgentTerminal";
+import TelemetryStrip from "@/components/TelemetryStrip";
 import {
   AGENT_STREAM_ERROR_MESSAGE,
   AGENT_STREAM_URL,
@@ -76,9 +77,15 @@ const initialNodes: Node<AgentNodeData>[] = [
     position: { x: 650, y: 150 },
     data: { label: "Remediation", accent: "emerald", active: false },
   },
+  {
+    id: "validator",
+    type: "agent",
+    position: { x: 950, y: 150 },
+    data: { label: "Validator", accent: "magenta", active: false },
+  },
 ];
 
-/** Dotted connectors sampled from public/P1.png (cyan -> violet). */
+/** Dotted connectors — hairline, recessive, no glow bombs. */
 const initialEdges: Edge[] = [
   {
     id: "e-orchestrator-investigator",
@@ -86,10 +93,9 @@ const initialEdges: Edge[] = [
     target: "investigator",
     animated: false,
     style: {
-      stroke: "#08b6f9",
-      strokeWidth: 1.6,
-      strokeDasharray: "5 7",
-      filter: "drop-shadow(0 0 4px rgba(8,182,249,0.55))",
+      stroke: "rgba(125,211,252,0.55)",
+      strokeWidth: 1.25,
+      strokeDasharray: "4 6",
     },
   },
   {
@@ -98,10 +104,20 @@ const initialEdges: Edge[] = [
     target: "remediation",
     animated: false,
     style: {
-      stroke: "#a855f7",
-      strokeWidth: 1.6,
-      strokeDasharray: "5 7",
-      filter: "drop-shadow(0 0 4px rgba(168,85,247,0.55))",
+      stroke: "rgba(167,139,250,0.55)",
+      strokeWidth: 1.25,
+      strokeDasharray: "4 6",
+    },
+  },
+  {
+    id: "e-remediation-validator",
+    source: "remediation",
+    target: "validator",
+    animated: false,
+    style: {
+      stroke: "rgba(240,171,252,0.5)",
+      strokeWidth: 1.25,
+      strokeDasharray: "4 6",
     },
   },
 ];
@@ -117,19 +133,25 @@ const agentLegend: {
     id: "orchestrator",
     title: "Orchestrator",
     desc: "Plans tasks & routes context",
-    dot: "bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,1)]",
+    dot: "bg-sky-200/90",
   },
   {
     id: "investigator",
     title: "Investigator",
     desc: "Scans code & gathers evidence",
-    dot: "bg-violet-400 shadow-[0_0_10px_rgba(168,85,247,1)]",
+    dot: "bg-violet-300/90",
   },
   {
     id: "remediation",
     title: "Remediation",
     desc: "Proposes & applies fixes",
-    dot: "bg-emerald-300 shadow-[0_0_10px_rgba(52,211,153,1)]",
+    dot: "bg-teal-200/90",
+  },
+  {
+    id: "validator",
+    title: "Validator",
+    desc: "Re-runs checks & confirms the fix",
+    dot: "bg-fuchsia-200/90",
   },
 ];
 
@@ -144,6 +166,29 @@ const REPO_URL_PATTERN = new RegExp(
   "^https://github\\.com/[^/\\s]+/[^/\\s]+/?$",
   "i",
 );
+
+/** An issue description shorter than this is flagged as too vague to act on. */
+const ISSUE_DESCRIPTION_MIN_LENGTH = 10;
+
+/**
+ * Field chrome per validation state.
+ *
+ * The whole utility string is swapped rather than layered, so a magenta error
+ * state never has to out-specify a cyan utility for the same declaration
+ * (both would just sit in the same cascade layer and fight).
+ */
+const FIELD_TONE = {
+  valid:
+    "focus:border-sky-200/40 focus:ring-sky-200/20 focus:shadow-[0_0_0_3px_rgba(125,211,252,0.14)]",
+  invalid:
+    "border-rose-300/30 focus:border-rose-300/50 focus:ring-rose-200/20 focus:shadow-[0_0_0_3px_rgba(251,113,133,0.14)]",
+} as const;
+
+/** Floating-label colour: quiet slate, brightening on focus. */
+const LABEL_TONE = {
+  valid: "text-slate-500 peer-focus:text-slate-200 peer-valid:text-slate-400",
+  invalid: "text-rose-300/80 peer-focus:text-rose-200",
+} as const;
 
 const WORKFLOW_BUTTON_LABEL: Record<WorkflowStatus, string> = {
   idle: "Start Workflow",
@@ -354,6 +399,14 @@ export default function NexusDashboard() {
   );
   const isWorkflowDisabled = isStarting || !hasWorkflowInput;
 
+  // Live validation states, rendered in magenta (cyan stays for valid/active):
+  // - a non-empty repo URL that is not a GitHub owner/repo, or
+  // - an issue description too short to be actionable.
+  const isRepoUrlInvalid = trimmedRepoUrl.length > 0 && !isRepoUrlShapeValid;
+  const isIssueInvalid =
+    trimmedIssueDescription.length > 0 &&
+    trimmedIssueDescription.length < ISSUE_DESCRIPTION_MIN_LENGTH;
+
   // Mirror the active agent onto the React Flow nodes. Nodes already in the
   // right state are returned by reference so the graph is not re-rendered on
   // every incoming log line.
@@ -382,7 +435,7 @@ export default function NexusDashboard() {
 
   return (
     <div className="relative min-h-screen text-slate-100">
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14">
         {/* Mobile sticky CTA: the workflow action stays thumb-reachable. */}
         <div className="sticky top-3 z-20 lg:hidden">
           <div className="glass-panel flex items-center gap-3 px-4 py-3">
@@ -396,10 +449,10 @@ export default function NexusDashboard() {
                 isStarting && "is-starting",
                 ctaFlash === "error" && "btn-error-shake",
                 workflowStatus === "error"
-                  ? "border-rose-400/50 text-rose-100"
+                  ? "border-rose-300/30 text-rose-100"
                   : workflowStatus === "started" || ctaFlash === "success"
-                    ? "border-emerald-400/50 text-emerald-100"
-                    : "text-cyan-50",
+                    ? "border-teal-200/30 text-teal-50"
+                    : "text-slate-50",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -416,26 +469,25 @@ export default function NexusDashboard() {
         </div>
 
         {/* Header — console identity strip. */}
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold tracking-[0.22em] text-cyan-200 uppercase backdrop-blur-md">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,1)]" />
-              IBM BOB 2.0 // NEXUS CONSOLE
+            <div className="eyebrow mb-4 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 backdrop-blur-md">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300/90" />
+              IBM BOB 2.0 — NEXUS CONSOLE
             </div>
-            <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
-              <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-fuchsia-300 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(8,182,249,0.35)]">
-                NEXUS
-              </span>{" "}
-              <span className="text-white/90">Workflow</span>
+            <h1 className="display-tight text-5xl font-extrabold sm:text-6xl">
+              <span className="text-white">NEXUS</span>{" "}
+              <span className="display-sub text-slate-400">Workflow</span>
             </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
-              AI-powered developer agent pipeline. Orchestrate investigation and
-              autonomous remediation from a single glass console.
+            <p className="body-luxe mt-4 max-w-xl text-[14px] text-slate-400">
+              AI-powered developer agent pipeline. Orchestrate investigation
+              and autonomous remediation from a single glass console.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {["Orchestrator", "Investigator", "Remediation"].map((label) => (
+            {["Orchestrator", "Investigator", "Remediation", "Validator"].map(
+              (label) => (
               <span key={label} className="chip">
                 {label}
               </span>
@@ -443,15 +495,24 @@ export default function NexusDashboard() {
           </div>
         </header>
 
-        {/* Immersive glass container — toolbar, form, canvas and log feed. */}
-        <main className="glass-panel-immersive relative mt-2 overflow-hidden">
+        {/* Immersive glass container — toolbar, telemetry, form, canvas, log.
+            `hud-scanlines` paints a drifting CRT raster above the glass, and
+            the vignette + corner brackets frame it like a tactical screen.
+            Every overlay is `pointer-events: none`, so nothing blocks clicks. */}
+        <main className="glass-panel-immersive hud-scanlines relative mt-4 overflow-hidden">
+          <div aria-hidden className="hud-vignette" />
+          <span aria-hidden className="hud-frame hud-frame-tl" />
+          <span aria-hidden className="hud-frame hud-frame-tr" />
+          <span aria-hidden className="hud-frame hud-frame-bl" />
+          <span aria-hidden className="hud-frame hud-frame-br" />
+
           {/* Console toolbar */}
-          <div className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6">
+          <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] px-5 py-4 sm:px-7">
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-[#ff5f57] shadow-[0_0_10px_rgba(255,95,87,0.8)]" />
-              <span className="h-3 w-3 rounded-full bg-[#febc2e] shadow-[0_0_10px_rgba(254,188,46,0.8)]" />
-              <span className="h-3 w-3 rounded-full bg-[#28c840] shadow-[0_0_10px_rgba(40,200,64,0.8)]" />
-              <span className="ml-4 font-mono text-xs tracking-[0.2em] text-slate-400 uppercase">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]/70" />
+              <span className="ml-4 font-mono text-[10px] font-medium tracking-[0.28em] text-slate-500 uppercase">
                 agent-pipeline — sandbox
               </span>
             </div>
@@ -467,10 +528,20 @@ export default function NexusDashboard() {
             </div>
           </div>
 
+          {/* System telemetry — mocked baselines + values derived from the
+              live stream, animated entirely with CSS keyframes. */}
+          <TelemetryStrip
+            frames={logs.length}
+            bufferLimit={LOG_BUFFER_LIMIT}
+            status={connectionStatus}
+            degraded={Boolean(streamError) || connectionStatus === "closed"}
+            activeNodeId={activeNodeId}
+          />
+
           {/* Workflow console card: POST /api/start-workflow. */}
-          <div className="border-b border-white/10 px-4 py-5 sm:px-6">
+          <div className="border-b border-white/[0.06] px-5 py-7 sm:px-7">
             <div className="lg:ml-auto lg:max-w-xl">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-5 sm:grid-cols-2">
                 <label
                   htmlFor="repo-url"
                   className="group relative block sm:col-span-2"
@@ -487,17 +558,26 @@ export default function NexusDashboard() {
                     pattern="https://github.com/[^/\s]+/[^/\s]+/?"
                     title="Use a GitHub repository URL like https://github.com/owner/repo"
                     aria-describedby={repoUrlHintId}
-                    className="glass-input peer min-h-[48px] px-4 py-4 text-sm"
+                    aria-invalid={isRepoUrlInvalid}
+                    className={`glass-input peer min-h-[52px] px-4 py-4 text-[14px] focus:ring-2 ${
+                      FIELD_TONE[isRepoUrlInvalid ? "invalid" : "valid"]
+                    }`}
                   />
-                  <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 font-mono text-sm tracking-[0.15em] text-slate-400 transition-all duration-200 peer-focus:top-2 peer-focus:-translate-y-full peer-focus:text-[10px] peer-focus:text-cyan-300 peer-valid:top-2 peer-valid:-translate-y-full peer-valid:text-[10px] peer-valid:text-cyan-300 peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm">
+                  <span
+                    className={`pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 font-mono text-sm font-light tracking-[0.08em] transition-all duration-200 peer-focus:top-2 peer-focus:-translate-y-full peer-focus:text-[10px] peer-valid:top-2 peer-valid:-translate-y-full peer-valid:text-[10px] peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm ${
+                      LABEL_TONE[isRepoUrlInvalid ? "invalid" : "valid"]
+                    }`}
+                  >
                     Repository URL
                   </span>
                   <span
                     id={repoUrlHintId}
-                    className="mt-1.5 block font-mono text-[10px] tracking-[0.14em] text-slate-500 uppercase"
+                    className={`mt-2 block font-mono text-[10px] tracking-[0.18em] uppercase ${
+                      isRepoUrlInvalid ? "text-rose-300/90" : "text-slate-600"
+                    }`}
                   >
-                    {trimmedRepoUrl.length > 0 && !isRepoUrlShapeValid
-                      ? "Use https://github.com/owner/repo"
+                    {isRepoUrlInvalid
+                      ? "GitHub URL required: https://github.com/owner/repo"
                       : `${repoUrl.length}/${REPO_URL_MAX_LENGTH}`}
                   </span>
                 </label>
@@ -515,21 +595,32 @@ export default function NexusDashboard() {
                     rows={4}
                     maxLength={ISSUE_DESCRIPTION_MAX_LENGTH}
                     aria-describedby={issueHintId}
-                    className="glass-input peer min-h-28 resize-y px-4 py-4 text-sm leading-6"
+                    aria-invalid={isIssueInvalid}
+                    className={`glass-input peer min-h-32 resize-y px-4 py-4 text-[14px] leading-[1.75] focus:ring-2 ${
+                      FIELD_TONE[isIssueInvalid ? "invalid" : "valid"]
+                    }`}
                   />
-                  <span className="pointer-events-none absolute top-3 left-4 font-mono text-sm tracking-[0.15em] text-slate-400 transition-all duration-200 peer-focus:top-2 peer-focus:-translate-y-1 peer-focus:text-[10px] peer-focus:text-cyan-300 peer-valid:top-2 peer-valid:-translate-y-1 peer-valid:text-[10px] peer-valid:text-cyan-300 peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm">
+                  <span
+                    className={`pointer-events-none absolute top-3 left-4 font-mono text-sm font-light tracking-[0.08em] transition-all duration-200 peer-focus:top-2 peer-focus:-translate-y-1 peer-focus:text-[10px] peer-valid:top-2 peer-valid:-translate-y-1 peer-valid:text-[10px] peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm ${
+                      LABEL_TONE[isIssueInvalid ? "invalid" : "valid"]
+                    }`}
+                  >
                     Bug / Issue Description
                   </span>
                   <span
                     id={issueHintId}
-                    className="mt-1.5 block text-right font-mono text-[10px] tracking-[0.14em] text-slate-500 uppercase"
+                    className={`mt-2 block text-right font-mono text-[10px] tracking-[0.18em] uppercase ${
+                      isIssueInvalid ? "text-rose-300/90" : "text-slate-600"
+                    }`}
                   >
-                    {issueDescription.length}/{ISSUE_DESCRIPTION_MAX_LENGTH}
+                    {isIssueInvalid
+                      ? `Add detail (${ISSUE_DESCRIPTION_MIN_LENGTH}+ chars)`
+                      : `${issueDescription.length}/${ISSUE_DESCRIPTION_MAX_LENGTH}`}
                   </span>
                 </label>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+              <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
                 <span className="chip hidden sm:inline-flex">
                   {nodes.length} nodes / {edges.length} edges
                 </span>
@@ -544,7 +635,7 @@ export default function NexusDashboard() {
                     ctaFlash === "error" && "btn-error-shake",
                     workflowStatus === "started" && "active",
                     workflowStatus === "error"
-                      ? "border-rose-400/60 text-rose-100"
+                      ? "border-rose-300/40 text-rose-100"
                       : "text-white",
                   ]
                     .filter(Boolean)
@@ -556,10 +647,10 @@ export default function NexusDashboard() {
                       isStarting ? "animate-pulse" : ""
                     } ${
                       workflowStatus === "error"
-                        ? "bg-rose-300"
+                        ? "bg-rose-300/90"
                         : workflowStatus === "started"
-                          ? "bg-emerald-300"
-                          : "bg-cyan-200"
+                          ? "bg-teal-200/90"
+                          : "bg-slate-200/90"
                     }`}
                   />
                   {WORKFLOW_BUTTON_LABEL[workflowStatus]}
@@ -572,13 +663,13 @@ export default function NexusDashboard() {
             <p
               aria-live="polite"
               className={[
-                "border-b px-6 py-2 font-mono text-[11px]",
+                "border-b border-white/[0.06] px-7 py-2.5 font-mono text-[11px] font-light tracking-[0.04em] leading-relaxed",
                 workflowStatus === "error"
-                  ? "border-rose-400/20 bg-rose-500/10 text-rose-200"
-                  : "border-emerald-400/20 bg-emerald-500/10 text-emerald-200",
+                  ? "bg-rose-500/[0.06] text-rose-200/90"
+                  : "bg-teal-400/[0.06] text-teal-100/90",
               ].join(" ")}
             >
-              {workflowStatus === "error" ? "⚠ " : "✓ "}
+              {workflowStatus === "error" ? "— " : "— "}
               {workflowMessage}
             </p>
           )}
@@ -587,11 +678,11 @@ export default function NexusDashboard() {
               only toggles visibility of this same graph, so typing + streaming
               never pay for two canvases. */}
           <details
-            className="pipeline-details w-full bg-[#05001a]/60 sm:hidden"
+            className="pipeline-details w-full bg-black/20 sm:hidden"
             open={isPipelineOpen}
             onToggle={(event) => setIsPipelineOpen(event.currentTarget.open)}
           >
-            <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between px-4 py-3 font-mono text-[11px] tracking-[0.2em] text-slate-300 uppercase">
+            <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between px-5 py-3 font-mono text-[10px] font-medium tracking-[0.26em] text-slate-400 uppercase">
               <span>Agent pipeline</span>
               <span className="chip">{activeNodeId ?? "standby"}</span>
             </summary>
@@ -599,9 +690,9 @@ export default function NexusDashboard() {
           <div
             className={`${
               isPipelineOpen ? "block" : "hidden"
-            } w-full bg-[#05001a]/60 sm:block`}
+            } w-full bg-black/20 sm:block`}
           >
-            <div className="h-[300px] w-full sm:h-[380px] lg:h-[420px]">
+            <div className="h-[320px] w-full sm:h-[400px] lg:h-[440px]">
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -610,7 +701,7 @@ export default function NexusDashboard() {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 fitView
-                fitViewOptions={{ padding: 0.25 }}
+                fitViewOptions={{ padding: 0.28 }}
                 minZoom={0.4}
                 maxZoom={1.75}
                 proOptions={{ hideAttribution: false }}
@@ -618,9 +709,9 @@ export default function NexusDashboard() {
               >
                 <Background
                   variant={BackgroundVariant.Dots}
-                  gap={28}
-                  size={1.5}
-                  color="rgba(8,182,249,0.22)"
+                  gap={30}
+                  size={1.2}
+                  color="rgba(148,163,184,0.16)"
                 />
                 <Controls position="bottom-right" showInteractive={false} />
                 <MiniMap
@@ -644,30 +735,30 @@ export default function NexusDashboard() {
             onClear={clearLogs}
           />
 
-          {/* Footer strip — one static status card per agent. */}
-          <div className="legend-carousel grid grid-cols-1 gap-3 border-t border-white/10 bg-black/30 px-4 py-4 sm:grid-cols-3 sm:px-6">
+          {/* Footer strip — one quiet status card per agent. */}
+          <div className="legend-carousel grid grid-cols-1 gap-3 border-t border-white/[0.06] bg-white/[0.008] px-5 py-5 sm:grid-cols-2 sm:px-7 lg:grid-cols-4">
             {agentLegend.map((item) => {
               const isActive = item.id === activeNodeId;
               return (
                 <div
                   key={item.title}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 backdrop-blur-md transition-colors duration-300 ${
+                  className={`flex items-center gap-3.5 rounded-2xl border px-4 py-3.5 backdrop-blur-md transition-all duration-300 ${
                     isActive
-                      ? "border-cyan-300/40 bg-white/[0.09] shadow-[0_0_30px_-8px_rgba(8,182,249,0.75)]"
-                      : "border-white/10 bg-white/[0.04]"
+                      ? "border-white/20 bg-white/[0.06]"
+                      : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.035]"
                   }`}
                 >
                   <span
                     aria-hidden
-                    className={`h-2 w-2 rounded-full ${item.dot} ${
-                      isActive ? "" : "opacity-60"
+                    className={`h-1.5 w-1.5 rounded-full ${item.dot} ${
+                      isActive ? "" : "opacity-45"
                     }`}
                   />
                   <div>
-                    <p className="text-sm font-semibold text-white">
+                    <p className="text-[13px] font-medium tracking-[0.01em] text-slate-100">
                       {item.title}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="mt-0.5 text-xs font-light leading-relaxed text-slate-500">
                       {isActive ? "processing — streaming logs" : item.desc}
                     </p>
                   </div>
@@ -677,11 +768,11 @@ export default function NexusDashboard() {
           </div>
         </main>
 
-        <p className="mt-2 hidden text-center font-mono text-[11px] tracking-[0.25em] text-slate-500 uppercase sm:block">
-          Drag nodes // Scroll to zoom // NEXUS glass console
+        <p className="mt-2 hidden text-center font-mono text-[10px] font-medium tracking-[0.32em] text-slate-600 uppercase sm:block">
+          Drag nodes — Scroll to zoom — NEXUS glass console
         </p>
-        <p className="mt-2 text-center font-mono text-[11px] tracking-[0.25em] text-slate-500 uppercase sm:hidden">
-          Tap nodes // Pinch to zoom
+        <p className="mt-2 text-center font-mono text-[10px] font-medium tracking-[0.32em] text-slate-600 uppercase sm:hidden">
+          Tap nodes — Pinch to zoom
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 
 import type { AgentAccent } from "@/lib/agentStream";
@@ -22,25 +22,32 @@ interface AccentSpec {
 
 const ACCENTS: Record<AgentAccent, AccentSpec> = {
   cyan: {
-    rgb: "8,182,249",
-    dot: "var(--accent-cyan)",
-    labelClass: "text-cyan-100",
+    rgb: "125,211,252",
+    dot: "#bae6fd",
+    labelClass: "text-slate-100",
     surface:
-      "linear-gradient(135deg, rgba(8,182,249,0.16), rgba(8,182,249,0.03))",
+      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(125,211,252,0.05))",
   },
   violet: {
-    rgb: "139,92,246",
-    dot: "var(--accent-violet)",
-    labelClass: "text-violet-100",
+    rgb: "167,139,250",
+    dot: "#ddd6fe",
+    labelClass: "text-slate-100",
     surface:
-      "linear-gradient(135deg, rgba(139,92,246,0.2), rgba(217,70,239,0.05))",
+      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(167,139,250,0.06))",
   },
   emerald: {
-    rgb: "45,212,191",
-    dot: "var(--accent-mint)",
-    labelClass: "text-emerald-100",
+    rgb: "94,234,212",
+    dot: "#99f6e4",
+    labelClass: "text-slate-100",
     surface:
-      "linear-gradient(135deg, rgba(45,212,191,0.16), rgba(8,182,249,0.04))",
+      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(94,234,212,0.05))",
+  },
+  magenta: {
+    rgb: "240,171,252",
+    dot: "#f5d0fe",
+    labelClass: "text-slate-100",
+    surface:
+      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(240,171,252,0.06))",
   },
 };
 
@@ -57,49 +64,69 @@ function AgentNode({ data }: NodeProps<AgentNodeData>) {
   const active = Boolean(data.active);
 
   const shadow = active
-    ? `0 0 0 1px rgba(${rgb},0.9), 0 0 34px -6px rgba(${rgb},0.85), 0 0 90px -40px rgba(${rgb},0.9), inset 0 1px 0 rgba(255,255,255,0.2)`
-    : `0 0 0 1px rgba(${rgb},0.32), 0 0 24px -12px rgba(${rgb},0.7), inset 0 1px 0 rgba(255,255,255,0.08)`;
+    ? `0 0 0 1px rgba(${rgb},0.4), 0 14px 36px -22px rgba(0,0,0,0.9), 0 0 22px -12px rgba(${rgb},0.35), inset 0 1px 0 rgba(255,255,255,0.15)`
+    : `0 0 0 1px rgba(255,255,255,0.07), 0 14px 32px -24px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1)`;
 
   const handleStyle = {
     width: 7,
     height: 7,
     background: accent.dot,
-    border: "1px solid rgba(255,255,255,0.45)",
-    boxShadow: `0 0 10px rgba(${rgb},0.9)`,
+    border: "1px solid rgba(255,255,255,0.35)",
+    boxShadow: `0 0 6px rgba(${rgb},0.45)`,
+  };
+
+  // `--accent-rgb` is the single hook the HUD CSS reads: the internal pulse,
+  // the halo brackets and the armed border all inherit it from this wrapper.
+  const hudVars = { "--accent-rgb": rgb } as CSSProperties;
+
+  const railStyle = {
+    background: `linear-gradient(90deg, transparent, rgba(${rgb},0.5), transparent)`,
   };
 
   return (
-    <div className="relative w-[190px]">
-      <span className="pointer-events-none absolute -top-2 right-3 z-10 rounded-full border border-white/10 bg-[#05001a]/85 px-1.5 py-px font-mono text-[8px] tracking-[0.2em] text-white/60 uppercase">
+    <div className="relative w-[196px]" style={hudVars}>
+      <span className="pointer-events-none absolute -top-2 right-3 z-10 rounded-full border border-white/10 bg-[#05001a]/90 px-1.5 py-px font-mono text-[8px] font-medium tracking-[0.24em] text-white/40 uppercase">
         agent
       </span>
 
+      {/* HUD halo brackets: drawn from --accent-rgb, no extra JS. */}
+      <span aria-hidden className="hud-bracket hud-bracket-tl" />
+      <span aria-hidden className="hud-bracket hud-bracket-br" />
+
       <div
-        className="node-surface relative border px-4 py-3"
+        className={`node-surface relative border px-4 py-3 ${
+          active ? "node-surface-active" : ""
+        }`}
         style={{ backgroundImage: accent.surface, boxShadow: shadow }}
       >
+        {/* Instrument rail along the top edge of the card. */}
+        <span
+          aria-hidden
+          className="absolute inset-x-4 top-0 h-px opacity-40"
+          style={railStyle}
+        />
         <div className="flex items-center justify-between gap-2">
           <span
-            className={`text-[13px] font-bold tracking-[0.08em] uppercase ${accent.labelClass}`}
+            className={`text-[13px] font-semibold tracking-[0.02em] ${accent.labelClass}`}
           >
             {data.label}
           </span>
           <span
             aria-hidden
-            className={`h-2 w-2 shrink-0 rounded-full transition-all duration-300 ${
-              active ? "scale-125 opacity-100" : "scale-100 opacity-45"
+            className={`h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-300 ${
+              active ? "scale-110 opacity-100" : "scale-100 opacity-35"
             }`}
             style={{
               background: accent.dot,
-              boxShadow: active ? `0 0 12px rgba(${rgb},1)` : "none",
+              boxShadow: active ? `0 0 8px rgba(${rgb},0.6)` : "none",
             }}
           />
         </div>
 
-        <div className="mt-2 font-mono text-[10px] tracking-[0.18em] uppercase">
+        <div className="mt-2 font-mono text-[9px] font-medium tracking-[0.24em] uppercase">
           <span
             className={`transition-colors duration-300 ${
-              active ? "text-white" : "text-slate-400"
+              active ? "text-white/90" : "text-slate-500"
             }`}
           >
             {active ? "processing" : "standby"}

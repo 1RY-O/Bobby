@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# Next.js app modules.
+# The Python packaging rules above ignore every directory named `lib/`, which
+# silently excludes frontend/lib — the shared agent-stream wire contract that
+# app/page.tsx, NexusDashboard and AgentTerminal all import. Without these
+# negations a fresh clone fails to build (`@/lib/agentStream` is unresolved).
+# Purely additive: no Python ignore rule changes behaviour.
+# ---------------------------------------------------------------------------
+!frontend/lib/
+!frontend/lib/**

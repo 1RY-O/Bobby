@@ -7,28 +7,34 @@ import NexusDashboard from "@/components/NexusDashboard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /**
- * How long the landing keeps fading while the dashboard mounts underneath.
- * Mirrors the `.landing-leaving` / `.view-fade` transition in globals.css.
+ * Length of the "Lens Dive" handoff in milliseconds. Must match the
+ * `lens-dive` and `dashboard-land` animations in globals.css.
  */
-const HANDOFF_MS = 260;
+const LENS_DIVE_MS = 700;
 
 /**
  * App shell.
  *
- * The landing page renders first and the dashboard is only mounted once the
- * visitor enters, so the WebSocket stream and the React Flow canvas never run
- * behind the intro. The deep-space backdrop is painted once here (fixed +
- * pointer-transparent) so it persists across the handoff instead of being
- * recreated by each screen.
+ * "ENTER EXPERIENCE" starts a cinematic handoff: the dashboard is mounted
+ * *underneath* the landing page first, then the landing dives through the lens
+ * (scale 1 -> 3, fading out) while the console eases down into place
+ * (scale 1.03 -> 1, fading in). Because the console mounts at the start of the
+ * animation, its socket is already connecting while the dive plays — the
+ * readout is live by the time the user lands.
+ *
+ * The landing unmounts once the animation ends so no off-screen layer keeps
+ * painting. Both animations are pure CSS: the only JS here is one state flip
+ * plus one timeout. The deep-space backdrop is painted once, at this level, so
+ * it persists across the transition instead of being recreated by each screen.
  */
 export default function Home() {
-  const [entered, setEntered] = useState(false);
-  const [leaving, setLeaving] = useState(false);
+  const [isEntering, setIsEntering] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
 
   const enter = () => {
-    if (leaving) return;
-    setLeaving(true);
-    window.setTimeout(() => setEntered(true), HANDOFF_MS);
+    if (isEntering) return;
+    setIsEntering(true);
+    window.setTimeout(() => setHasEntered(true), LENS_DIVE_MS);
   };
 
   return (
@@ -37,15 +43,19 @@ export default function Home() {
       <div aria-hidden className="grid-overlay" />
       <div aria-hidden className="vignette-overlay" />
 
-      {entered ? (
-        <div className="view-fade relative z-10">
+      {/* Mounted the instant the dive starts, so it lands already streaming. */}
+      {isEntering && (
+        <div className="dashboard-land relative z-10">
           <ErrorBoundary label="NEXUS dashboard">
             <NexusDashboard />
           </ErrorBoundary>
         </div>
-      ) : (
+      )}
+
+      {/* The landing stays on top (z-30) while it dives, then unmounts. */}
+      {!hasEntered && (
         <ErrorBoundary label="Landing">
-          <LandingHero onEnter={enter} leaving={leaving} />
+          <LandingHero onEnter={enter} isEntering={isEntering} />
         </ErrorBoundary>
       )}
     </div>
