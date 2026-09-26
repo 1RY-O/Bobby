@@ -85,7 +85,7 @@ const initialNodes: Node<AgentNodeData>[] = [
   },
 ];
 
-/** Dotted connectors — hairline, recessive, no glow bombs. */
+/** Dotted connectors — caffeinated axe/thunder electric rails. */
 const initialEdges: Edge[] = [
   {
     id: "e-orchestrator-investigator",
@@ -93,8 +93,8 @@ const initialEdges: Edge[] = [
     target: "investigator",
     animated: false,
     style: {
-      stroke: "rgba(125,211,252,0.55)",
-      strokeWidth: 1.25,
+      stroke: "rgba(57,255,20,0.7)",
+      strokeWidth: 2,
       strokeDasharray: "4 6",
     },
   },
@@ -104,8 +104,8 @@ const initialEdges: Edge[] = [
     target: "remediation",
     animated: false,
     style: {
-      stroke: "rgba(167,139,250,0.55)",
-      strokeWidth: 1.25,
+      stroke: "rgba(0,240,255,0.7)",
+      strokeWidth: 2,
       strokeDasharray: "4 6",
     },
   },
@@ -115,8 +115,8 @@ const initialEdges: Edge[] = [
     target: "validator",
     animated: false,
     style: {
-      stroke: "rgba(240,171,252,0.5)",
-      strokeWidth: 1.25,
+      stroke: "rgba(226,232,240,0.65)",
+      strokeWidth: 2,
       strokeDasharray: "4 6",
     },
   },
@@ -133,25 +133,25 @@ const agentLegend: {
     id: "orchestrator",
     title: "Orchestrator",
     desc: "Plans tasks & routes context",
-    dot: "bg-sky-200/90",
+    dot: "bg-[#39ff14] shadow-[0_0_8px_rgba(57,255,20,0.9)]",
   },
   {
     id: "investigator",
     title: "Investigator",
     desc: "Scans code & gathers evidence",
-    dot: "bg-violet-300/90",
+    dot: "bg-[#00f0ff] shadow-[0_0_8px_rgba(0,240,255,0.9)]",
   },
   {
     id: "remediation",
     title: "Remediation",
     desc: "Proposes & applies fixes",
-    dot: "bg-teal-200/90",
+    dot: "bg-[#e2e8f0] shadow-[0_0_8px_rgba(226,232,240,0.9)]",
   },
   {
     id: "validator",
     title: "Validator",
     desc: "Re-runs checks & confirms the fix",
-    dot: "bg-fuchsia-200/90",
+    dot: "bg-[#ff0800] shadow-[0_0_8px_rgba(255,8,0,0.9)]",
   },
 ];
 
@@ -179,15 +179,15 @@ const ISSUE_DESCRIPTION_MIN_LENGTH = 10;
  */
 const FIELD_TONE = {
   valid:
-    "focus:border-sky-200/40 focus:ring-sky-200/20 focus:shadow-[0_0_0_3px_rgba(125,211,252,0.14)]",
+    "focus:border-[#39ff14] focus:ring-[#39ff14]/30 focus:shadow-[0_0_0_3px_rgba(57,255,20,0.22),0_0_24px_rgba(57,255,20,0.25)]",
   invalid:
-    "border-rose-300/30 focus:border-rose-300/50 focus:ring-rose-200/20 focus:shadow-[0_0_0_3px_rgba(251,113,133,0.14)]",
+    "border-[#ff0800]/50 focus:border-[#ff0800] focus:ring-[#ff0800]/30 focus:shadow-[0_0_0_3px_rgba(255,8,0,0.25),0_0_24px_rgba(255,8,0,0.35)]",
 } as const;
 
-/** Floating-label colour: quiet slate, brightening on focus. */
+/** Floating-label colour: icy silver, neon green on focus, rage red on error. */
 const LABEL_TONE = {
-  valid: "text-slate-500 peer-focus:text-slate-200 peer-valid:text-slate-400",
-  invalid: "text-rose-300/80 peer-focus:text-rose-200",
+  valid: "text-[#e2e8f0]/50 peer-focus:text-[#39ff14] peer-valid:text-[#00f0ff]/80",
+  invalid: "text-[#ff0800] peer-focus:text-[#ff0800]",
 } as const;
 
 const WORKFLOW_BUTTON_LABEL: Record<WorkflowStatus, string> = {
@@ -434,11 +434,11 @@ export default function NexusDashboard() {
   }, []);
 
   return (
-    <div className="relative min-h-screen text-slate-100">
+    <div className="relative min-h-screen text-[#e2e8f0]">
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-5 py-10 sm:px-8 sm:py-14">
         {/* Mobile sticky CTA: the workflow action stays thumb-reachable. */}
         <div className="sticky top-3 z-20 lg:hidden">
-          <div className="glass-panel flex items-center gap-3 px-4 py-3">
+          <div className="glass-panel frost-sheen flex items-center gap-3 px-4 py-3">
             <button
               type="button"
               onClick={startWorkflow}
@@ -449,10 +449,10 @@ export default function NexusDashboard() {
                 isStarting && "is-starting",
                 ctaFlash === "error" && "btn-error-shake",
                 workflowStatus === "error"
-                  ? "border-rose-300/30 text-rose-100"
+                  ? "border-[#ff0800]/60 text-[#ff0800]"
                   : workflowStatus === "started" || ctaFlash === "success"
-                    ? "border-teal-200/30 text-teal-50"
-                    : "text-slate-50",
+                    ? "border-[#39ff14]/60 text-[#0a0b0d]"
+                    : "text-[#0a0b0d]",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -469,26 +469,30 @@ export default function NexusDashboard() {
         </div>
 
         {/* Header — console identity strip. */}
-        <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <header className="pop-in flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="eyebrow mb-4 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 backdrop-blur-md">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300/90" />
-              IBM BOB 2.0 — NEXUS CONSOLE
+            <div className="eyebrow mb-4 inline-flex items-center gap-2.5 rounded-md border border-white/40 bg-white/[0.04] px-3.5 py-1.5 backdrop-blur-2xl">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#39ff14] shadow-[0_0_10px_rgba(57,255,20,1)]" />
+              <span className="text-[#e2e8f0]">IBM BOB 2.0</span>
+              <span className="text-[#39ff14]">—</span>
+              <span className="text-[#00f0ff]">NEXUS OVERDRIVE</span>
             </div>
-            <h1 className="display-tight text-5xl font-extrabold sm:text-6xl">
-              <span className="text-white">NEXUS</span>{" "}
-              <span className="display-sub text-slate-400">Workflow</span>
+            <h1 className="display-tight text-5xl font-black tracking-tight italic sm:text-6xl">
+              <span className="title-metallic">NEXUS</span>{" "}
+              <span className="display-sub text-[#00f0ff] drop-shadow-[0_0_12px_rgba(0,240,255,0.5)]">Workflow</span>
             </h1>
-            <p className="body-luxe mt-4 max-w-xl text-[14px] text-slate-400">
-              AI-powered developer agent pipeline. Orchestrate investigation
-              and autonomous remediation from a single glass console.
+            <p className="body-luxe mt-4 max-w-xl text-[14px] text-[#e2e8f0]/60">
+              ⚡ Caffeinated agent pipeline frozen at{" "}
+              <span className="font-semibold text-[#39ff14]">-273°C</span>.
+              Orchestrate investigation and autonomous remediation from a
+              single thunder-glass console.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {["Orchestrator", "Investigator", "Remediation", "Validator"].map(
+            {["⚡ Orchestrator", "❄ Investigator", "⚡ Remediation", "❄ Validator"].map(
               (label) => (
-              <span key={label} className="chip">
+              <span key={label} className="chip frost-sheen">
                 {label}
               </span>
             ))}
@@ -507,13 +511,14 @@ export default function NexusDashboard() {
           <span aria-hidden className="hud-frame hud-frame-br" />
 
           {/* Console toolbar */}
-          <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] px-5 py-4 sm:px-7">
+          <div className="flex items-center justify-between gap-4 border-b border-white/20 px-5 py-4 sm:px-7">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]/70" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]/70" />
-              <span className="ml-4 font-mono text-[10px] font-medium tracking-[0.28em] text-slate-500 uppercase">
-                agent-pipeline — sandbox
+              <span className="h-2.5 w-2.5 rounded-full bg-[#ff0800]/90 shadow-[0_0_8px_rgba(255,8,0,0.7)]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#e2e8f0]/80" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#39ff14]/90 shadow-[0_0_8px_rgba(57,255,20,0.7)]" />
+              <span className="ml-4 font-mono text-[10px] font-bold tracking-[0.28em] text-[#e2e8f0]/70 uppercase">
+                agent-pipeline <span className="text-[#39ff14]">{"//"}</span> frozen-sandbox{" "}
+                <span className="text-[#00f0ff]">❄</span>
               </span>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
@@ -539,8 +544,11 @@ export default function NexusDashboard() {
           />
 
           {/* Workflow console card: POST /api/start-workflow. */}
-          <div className="border-b border-white/[0.06] px-5 py-7 sm:px-7">
+          <div className="border-b border-white/20 px-5 py-7 sm:px-7">
             <div className="lg:ml-auto lg:max-w-xl">
+              <p className="mb-4 font-mono text-[10px] font-bold tracking-[0.3em] text-[#00f0ff] uppercase">
+                ⚡ {"//"} inject mission parameters
+              </p>
               <div className="grid gap-5 sm:grid-cols-2">
                 <label
                   htmlFor="repo-url"
@@ -572,12 +580,12 @@ export default function NexusDashboard() {
                   </span>
                   <span
                     id={repoUrlHintId}
-                    className={`mt-2 block font-mono text-[10px] tracking-[0.18em] uppercase ${
-                      isRepoUrlInvalid ? "text-rose-300/90" : "text-slate-600"
+                    className={`mt-2 block font-mono text-[10px] font-bold tracking-[0.18em] uppercase ${
+                      isRepoUrlInvalid ? "text-[#ff0800]" : "text-[#e2e8f0]/40"
                     }`}
                   >
                     {isRepoUrlInvalid
-                      ? "GitHub URL required: https://github.com/owner/repo"
+                      ? "⚠ GitHub URL required: https://github.com/owner/repo"
                       : `${repoUrl.length}/${REPO_URL_MAX_LENGTH}`}
                   </span>
                 </label>
@@ -609,12 +617,12 @@ export default function NexusDashboard() {
                   </span>
                   <span
                     id={issueHintId}
-                    className={`mt-2 block text-right font-mono text-[10px] tracking-[0.18em] uppercase ${
-                      isIssueInvalid ? "text-rose-300/90" : "text-slate-600"
+                    className={`mt-2 block text-right font-mono text-[10px] font-bold tracking-[0.18em] uppercase ${
+                      isIssueInvalid ? "text-[#ff0800]" : "text-[#e2e8f0]/40"
                     }`}
                   >
                     {isIssueInvalid
-                      ? `Add detail (${ISSUE_DESCRIPTION_MIN_LENGTH}+ chars)`
+                      ? `⚠ Add detail (${ISSUE_DESCRIPTION_MIN_LENGTH}+ chars)`
                       : `${issueDescription.length}/${ISSUE_DESCRIPTION_MAX_LENGTH}`}
                   </span>
                 </label>
@@ -630,13 +638,13 @@ export default function NexusDashboard() {
                   onClick={startWorkflow}
                   disabled={isWorkflowDisabled}
                   className={[
-                    "btn-workflow inline-flex min-h-[48px] shrink-0 items-center gap-2 px-5 py-2.5 font-mono text-[11px] font-semibold tracking-[0.16em] uppercase",
+                    "btn-workflow frost-sheen inline-flex min-h-[48px] shrink-0 items-center gap-2 px-5 py-2.5 font-mono text-[11px] font-black tracking-[0.16em] uppercase",
                     isStarting && "is-starting",
                     ctaFlash === "error" && "btn-error-shake",
                     workflowStatus === "started" && "active",
                     workflowStatus === "error"
-                      ? "border-rose-300/40 text-rose-100"
-                      : "text-white",
+                      ? "border-[#ff0800]/60 text-[#ff0800]"
+                      : "text-[#0a0b0d]",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -647,10 +655,10 @@ export default function NexusDashboard() {
                       isStarting ? "animate-pulse" : ""
                     } ${
                       workflowStatus === "error"
-                        ? "bg-rose-300/90"
+                        ? "bg-[#ff0800]"
                         : workflowStatus === "started"
-                          ? "bg-teal-200/90"
-                          : "bg-slate-200/90"
+                          ? "bg-[#39ff14] shadow-[0_0_8px_rgba(57,255,20,1)]"
+                          : "bg-[#0a0b0d]"
                     }`}
                   />
                   {WORKFLOW_BUTTON_LABEL[workflowStatus]}
@@ -663,13 +671,13 @@ export default function NexusDashboard() {
             <p
               aria-live="polite"
               className={[
-                "border-b border-white/[0.06] px-7 py-2.5 font-mono text-[11px] font-light tracking-[0.04em] leading-relaxed",
+                "border-b border-white/20 px-7 py-2.5 font-mono text-[11px] font-bold tracking-[0.04em] leading-relaxed",
                 workflowStatus === "error"
-                  ? "bg-rose-500/[0.06] text-rose-200/90"
-                  : "bg-teal-400/[0.06] text-teal-100/90",
+                  ? "bg-[#ff0800]/[0.1] text-[#ff0800]"
+                  : "bg-[#39ff14]/[0.08] text-[#39ff14]",
               ].join(" ")}
             >
-              {workflowStatus === "error" ? "— " : "— "}
+              {workflowStatus === "error" ? "⚠ " : "⚡ "}
               {workflowMessage}
             </p>
           )}
@@ -678,19 +686,19 @@ export default function NexusDashboard() {
               only toggles visibility of this same graph, so typing + streaming
               never pay for two canvases. */}
           <details
-            className="pipeline-details w-full bg-black/20 sm:hidden"
+            className="pipeline-details w-full bg-black/40 sm:hidden"
             open={isPipelineOpen}
             onToggle={(event) => setIsPipelineOpen(event.currentTarget.open)}
           >
-            <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between px-5 py-3 font-mono text-[10px] font-medium tracking-[0.26em] text-slate-400 uppercase">
-              <span>Agent pipeline</span>
+            <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between px-5 py-3 font-mono text-[10px] font-bold tracking-[0.26em] text-[#e2e8f0]/80 uppercase">
+              <span>⚡ Agent pipeline</span>
               <span className="chip">{activeNodeId ?? "standby"}</span>
             </summary>
           </details>
           <div
             className={`${
               isPipelineOpen ? "block" : "hidden"
-            } w-full bg-black/20 sm:block`}
+            } w-full bg-black/40 sm:block`}
           >
             <div className="h-[320px] w-full sm:h-[400px] lg:h-[440px]">
               <ReactFlow
@@ -709,9 +717,9 @@ export default function NexusDashboard() {
               >
                 <Background
                   variant={BackgroundVariant.Dots}
-                  gap={30}
-                  size={1.2}
-                  color="rgba(148,163,184,0.16)"
+                  gap={26}
+                  size={1.4}
+                  color="rgba(57,255,20,0.22)"
                 />
                 <Controls position="bottom-right" showInteractive={false} />
                 <MiniMap
@@ -735,31 +743,31 @@ export default function NexusDashboard() {
             onClear={clearLogs}
           />
 
-          {/* Footer strip — one quiet status card per agent. */}
-          <div className="legend-carousel grid grid-cols-1 gap-3 border-t border-white/[0.06] bg-white/[0.008] px-5 py-5 sm:grid-cols-2 sm:px-7 lg:grid-cols-4">
+          {/* Footer strip — one caffeinated status card per agent. */}
+          <div className="legend-carousel grid grid-cols-1 gap-3 border-t border-white/20 bg-white/[0.015] px-5 py-5 sm:grid-cols-2 sm:px-7 lg:grid-cols-4">
             {agentLegend.map((item) => {
               const isActive = item.id === activeNodeId;
               return (
                 <div
                   key={item.title}
-                  className={`flex items-center gap-3.5 rounded-2xl border px-4 py-3.5 backdrop-blur-md transition-all duration-300 ${
+                  className={`frost-sheen flex items-center gap-3.5 rounded-lg border px-4 py-3.5 backdrop-blur-2xl transition-all duration-300 ${
                     isActive
-                      ? "border-white/20 bg-white/[0.06]"
-                      : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.035]"
+                      ? "border-[#39ff14] bg-[#39ff14]/[0.08] shadow-[0_0_20px_rgba(57,255,20,0.35)] scale-[1.03]"
+                      : "border-white/40 bg-white/[0.03] hover:border-[#00f0ff] hover:bg-white/[0.06] hover:scale-[1.04] hover:-rotate-[0.5deg]"
                   }`}
                 >
                   <span
                     aria-hidden
-                    className={`h-1.5 w-1.5 rounded-full ${item.dot} ${
+                    className={`h-2 w-2 rounded-full ${item.dot} ${
                       isActive ? "" : "opacity-45"
                     }`}
                   />
                   <div>
-                    <p className="text-[13px] font-medium tracking-[0.01em] text-slate-100">
-                      {item.title}
+                    <p className="text-[13px] font-black tracking-[0.04em] text-[#e2e8f0] uppercase">
+                      {isActive ? `⚡ ${item.title}` : item.title}
                     </p>
-                    <p className="mt-0.5 text-xs font-light leading-relaxed text-slate-500">
-                      {isActive ? "processing — streaming logs" : item.desc}
+                    <p className={`mt-0.5 text-xs font-medium leading-relaxed ${isActive ? "text-[#39ff14]" : "text-[#e2e8f0]/50"}`}>
+                      {isActive ? "⚡ processing — streaming logs" : item.desc}
                     </p>
                   </div>
                 </div>
@@ -768,10 +776,10 @@ export default function NexusDashboard() {
           </div>
         </main>
 
-        <p className="mt-2 hidden text-center font-mono text-[10px] font-medium tracking-[0.32em] text-slate-600 uppercase sm:block">
-          Drag nodes — Scroll to zoom — NEXUS glass console
+        <p className="mt-2 hidden text-center font-mono text-[10px] font-bold tracking-[0.32em] text-[#e2e8f0]/50 uppercase sm:block">
+          ⚡ Drag nodes — Scroll to zoom — <span className="text-[#39ff14]">frozen thunder</span> console ❄
         </p>
-        <p className="mt-2 text-center font-mono text-[10px] font-medium tracking-[0.32em] text-slate-600 uppercase sm:hidden">
+        <p className="mt-2 text-center font-mono text-[10px] font-bold tracking-[0.32em] text-[#e2e8f0]/50 uppercase sm:hidden">
           Tap nodes — Pinch to zoom
         </p>
       </div>

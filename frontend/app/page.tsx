@@ -7,25 +7,27 @@ import NexusDashboard from "@/components/NexusDashboard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /**
- * Length of the "Lens Dive" handoff in milliseconds. Must match the
- * `lens-dive` and `dashboard-land` animations in globals.css.
+ * Length of the "Lens Dive" lightning handoff in milliseconds. Must match the
+ * `lens-dive-lightning` and `dashboard-snap` animations in globals.css.
  */
-const LENS_DIVE_MS = 700;
+const LENS_DIVE_MS = 550;
 
 /**
  * App shell.
  *
- * "ENTER EXPERIENCE" starts a cinematic handoff: the dashboard is mounted
- * *underneath* the landing page first, then the landing dives through the lens
- * (scale 1 -> 3, fading out) while the console eases down into place
- * (scale 1.03 -> 1, fading in). Because the console mounts at the start of the
- * animation, its socket is already connecting while the dive plays — the
- * readout is live by the time the user lands.
+ * "ENTER EXPERIENCE" starts a lightning-strike handoff: the dashboard is
+ * mounted *underneath* the landing page first, then the landing is struck
+ * through the lens (blinding Monster-white flash, scale 1 -> 3.2, snapping
+ * out) while the console snaps into place with a bouncy spring
+ * (scale 1.06 -> 1, flashing from white-hot to frozen). Because the console
+ * mounts at the start of the animation, its socket is already connecting
+ * while the strike plays — the readout is live by the time the user lands.
  *
  * The landing unmounts once the animation ends so no off-screen layer keeps
  * painting. Both animations are pure CSS: the only JS here is one state flip
- * plus one timeout. The deep-space backdrop is painted once, at this level, so
- * it persists across the transition instead of being recreated by each screen.
+ * plus one timeout. The obsidian-carbon backdrop is painted once, at this
+ * level, so it persists across the transition instead of being recreated by
+ * each screen.
  */
 export default function Home() {
   const [isEntering, setIsEntering] = useState(false);

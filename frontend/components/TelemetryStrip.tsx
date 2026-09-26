@@ -58,34 +58,34 @@ export default function TelemetryStrip({
   );
 
   const protocols = degraded
-    ? { label: "DEGRADED", tone: "alert", lit: 3, valueClass: "text-rose-200/90" }
+    ? { label: "⚠ DEGRADED", tone: "alert", lit: 3, valueClass: "text-[#ff0800]" }
     : status === "open"
       ? {
-          label: "NOMINAL",
+          label: "⚡ NOMINAL",
           tone: "ok",
           lit: PROTOCOL_SEGMENTS,
-          valueClass: "text-slate-100",
+          valueClass: "text-[#39ff14]",
         }
       : status === "connecting"
         ? {
-            label: "SYNCING",
+            label: "❄ SYNCING",
             tone: "warn",
             lit: 5,
-            valueClass: "text-amber-200/90",
+            valueClass: "text-[#00f0ff]",
           }
         : {
-            label: "OFFLINE",
+            label: "✕ OFFLINE",
             tone: "alert",
             lit: 2,
-            valueClass: "text-rose-200/90",
+            valueClass: "text-[#ff0800]",
           };
 
   return (
     <section aria-label="System telemetry" className="hud-strip">
       {/* SYS.UPTIME — mocked 24h availability readout. */}
-      <div className="hud-tile">
-        <p className="hud-tile-label">sys.uptime</p>
-        <p className="hud-tile-value text-slate-100">
+      <div className="hud-tile frost-sheen">
+        <p className="hud-tile-label">⚡ sys.uptime</p>
+        <p className="hud-tile-value text-[#e2e8f0]">
           {UPTIME_PERCENT.toFixed(1)}%
         </p>
         <div aria-hidden className="hud-meter">
@@ -94,15 +94,15 @@ export default function TelemetryStrip({
             style={{ width: `${UPTIME_PERCENT}%` }}
           />
         </div>
-        <p className="font-mono text-[9px] font-light tracking-[0.22em] text-slate-600 uppercase">
-          24h window
+        <p className="font-mono text-[9px] font-bold tracking-[0.22em] text-[#e2e8f0]/40 uppercase">
+          24h {"//"} overdrive
         </p>
       </div>
 
       {/* TOKENS.PROC — mock baseline plus a live per-frame increment. */}
-      <div className="hud-tile">
-        <p className="hud-tile-label">tokens.proc</p>
-        <p className="hud-tile-value">{formatTokens(tokens)}</p>
+      <div className="hud-tile frost-sheen">
+        <p className="hud-tile-label">❄ tokens.proc</p>
+        <p className="hud-tile-value text-[#39ff14]">{formatTokens(tokens)}</p>
         <div aria-hidden className="hud-spark">
           {SPARK_SHAPE.map((height, index) => (
             <span
@@ -114,14 +114,14 @@ export default function TelemetryStrip({
             />
           ))}
         </div>
-        <p className="font-mono text-[9px] font-light tracking-[0.22em] text-slate-600 uppercase">
-          {frames} frames ingested
+        <p className="font-mono text-[9px] font-bold tracking-[0.22em] text-[#e2e8f0]/40 uppercase">
+          {frames} frames {"//"} caffeinated
         </p>
       </div>
 
       {/* SEC.PROTOCOLS — wording and bar driven by the socket state. */}
-      <div className="hud-tile">
-        <p className="hud-tile-label">sec.protocols</p>
+      <div className="hud-tile frost-sheen">
+        <p className="hud-tile-label">⚡ sec.protocols</p>
         <p className={`hud-tile-value ${protocols.valueClass}`}>
           {protocols.label}
         </p>
@@ -133,20 +133,20 @@ export default function TelemetryStrip({
             />
           ))}
         </div>
-        <p className="font-mono text-[9px] font-light tracking-[0.22em] text-slate-600 uppercase">
-          wss — same-origin
+        <p className="font-mono text-[9px] font-bold tracking-[0.22em] text-[#e2e8f0]/40 uppercase">
+          wss <span className="text-[#39ff14]">{"//"}</span> frozen-shield
         </p>
       </div>
 
       {/* BUFFER.SAT — real buffer saturation + the active pipeline stage. */}
-      <div className="hud-tile">
-        <p className="hud-tile-label">buffer.sat</p>
-        <p className="hud-tile-value">{bufferUsage}%</p>
+      <div className="hud-tile frost-sheen">
+        <p className="hud-tile-label">❄ buffer.sat</p>
+        <p className="hud-tile-value text-[#00f0ff]">{bufferUsage}%</p>
         <div aria-hidden className="hud-meter">
           <div className="hud-meter-fill" style={{ width: `${bufferUsage}%` }} />
         </div>
-        <p className="font-mono text-[9px] font-light tracking-[0.22em] text-slate-600 uppercase">
-          stage {activeNodeId ?? "idle"}
+        <p className="font-mono text-[9px] font-bold tracking-[0.22em] text-[#e2e8f0]/40 uppercase">
+          stage <span className="text-[#39ff14]">{activeNodeId ?? "idle"}</span>
         </p>
       </div>
     </section>

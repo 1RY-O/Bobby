@@ -22,32 +22,32 @@ interface AccentSpec {
 
 const ACCENTS: Record<AgentAccent, AccentSpec> = {
   cyan: {
-    rgb: "125,211,252",
-    dot: "#bae6fd",
-    labelClass: "text-slate-100",
+    rgb: "0,240,255",
+    dot: "#00f0ff",
+    labelClass: "text-[#e2e8f0]",
     surface:
-      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(125,211,252,0.05))",
+      "linear-gradient(180deg, rgba(226,232,240,0.14), rgba(226,232,240,0.03) 55%, rgba(0,240,255,0.12))",
   },
   violet: {
-    rgb: "167,139,250",
-    dot: "#ddd6fe",
-    labelClass: "text-slate-100",
+    rgb: "57,255,20",
+    dot: "#39ff14",
+    labelClass: "text-[#e2e8f0]",
     surface:
-      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(167,139,250,0.06))",
+      "linear-gradient(180deg, rgba(226,232,240,0.14), rgba(226,232,240,0.03) 55%, rgba(57,255,20,0.12))",
   },
   emerald: {
-    rgb: "94,234,212",
-    dot: "#99f6e4",
-    labelClass: "text-slate-100",
+    rgb: "226,232,240",
+    dot: "#e2e8f0",
+    labelClass: "text-[#e2e8f0]",
     surface:
-      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(94,234,212,0.05))",
+      "linear-gradient(180deg, rgba(255,255,255,0.18), rgba(226,232,240,0.05) 55%, rgba(226,232,240,0.1))",
   },
   magenta: {
-    rgb: "240,171,252",
-    dot: "#f5d0fe",
-    labelClass: "text-slate-100",
+    rgb: "0,240,255",
+    dot: "#c8f7ff",
+    labelClass: "text-[#e2e8f0]",
     surface:
-      "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.012) 55%, rgba(240,171,252,0.06))",
+      "linear-gradient(180deg, rgba(226,232,240,0.14), rgba(226,232,240,0.03) 55%, rgba(0,240,255,0.1))",
   },
 };
 
@@ -64,15 +64,15 @@ function AgentNode({ data }: NodeProps<AgentNodeData>) {
   const active = Boolean(data.active);
 
   const shadow = active
-    ? `0 0 0 1px rgba(${rgb},0.4), 0 14px 36px -22px rgba(0,0,0,0.9), 0 0 22px -12px rgba(${rgb},0.35), inset 0 1px 0 rgba(255,255,255,0.15)`
-    : `0 0 0 1px rgba(255,255,255,0.07), 0 14px 32px -24px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1)`;
+    ? `0 0 0 1px rgba(${rgb},0.65), 0 14px 36px -18px rgba(0,0,0,0.9), 0 0 26px -6px rgba(${rgb},0.65), 0 0 56px -12px rgba(${rgb},0.4), inset 0 1px 0 rgba(255,255,255,0.65), inset 0 0 24px rgba(${rgb},0.12)`
+    : `0 0 0 1px rgba(255,255,255,0.4), 0 14px 32px -22px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.55)`;
 
   const handleStyle = {
-    width: 7,
-    height: 7,
+    width: 9,
+    height: 9,
     background: accent.dot,
-    border: "1px solid rgba(255,255,255,0.35)",
-    boxShadow: `0 0 6px rgba(${rgb},0.45)`,
+    border: "1px solid rgba(255,255,255,0.65)",
+    boxShadow: `0 0 10px rgba(${rgb},0.8)`,
   };
 
   // `--accent-rgb` is the single hook the HUD CSS reads: the internal pulse,
@@ -85,8 +85,8 @@ function AgentNode({ data }: NodeProps<AgentNodeData>) {
 
   return (
     <div className="relative w-[196px]" style={hudVars}>
-      <span className="pointer-events-none absolute -top-2 right-3 z-10 rounded-full border border-white/10 bg-[#05001a]/90 px-1.5 py-px font-mono text-[8px] font-medium tracking-[0.24em] text-white/40 uppercase">
-        agent
+      <span className="pointer-events-none absolute -top-2 right-3 z-10 rounded border border-white/40 bg-[#0a0b0d]/95 px-1.5 py-px font-mono text-[8px] font-black tracking-[0.24em] text-[#39ff14] uppercase shadow-[0_0_10px_rgba(57,255,20,0.4)]">
+        ⚡ agent
       </span>
 
       {/* HUD halo brackets: drawn from --accent-rgb, no extra JS. */}
@@ -107,29 +107,29 @@ function AgentNode({ data }: NodeProps<AgentNodeData>) {
         />
         <div className="flex items-center justify-between gap-2">
           <span
-            className={`text-[13px] font-semibold tracking-[0.02em] ${accent.labelClass}`}
+            className={`text-[13px] font-black tracking-[0.04em] uppercase italic ${accent.labelClass}`}
           >
             {data.label}
           </span>
           <span
             aria-hidden
-            className={`h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-300 ${
-              active ? "scale-110 opacity-100" : "scale-100 opacity-35"
+            className={`h-2 w-2 shrink-0 rounded-full transition-all duration-300 ${
+              active ? "scale-125 opacity-100" : "scale-100 opacity-40"
             }`}
             style={{
               background: accent.dot,
-              boxShadow: active ? `0 0 8px rgba(${rgb},0.6)` : "none",
+              boxShadow: active ? `0 0 12px rgba(${rgb},0.9)` : "none",
             }}
           />
         </div>
 
-        <div className="mt-2 font-mono text-[9px] font-medium tracking-[0.24em] uppercase">
+        <div className="mt-2 font-mono text-[9px] font-black tracking-[0.24em] uppercase">
           <span
             className={`transition-colors duration-300 ${
-              active ? "text-white/90" : "text-slate-500"
+              active ? "text-white drop-shadow-[0_0_6px_rgba(57,255,20,0.8)]" : "text-[#e2e8f0]/50"
             }`}
           >
-            {active ? "processing" : "standby"}
+            {active ? "⚡ processing" : "❄ standby"}
           </span>
         </div>
 

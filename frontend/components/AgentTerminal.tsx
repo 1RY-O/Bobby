@@ -69,29 +69,29 @@ function resolveTone(entry: AgentLog): Tone {
   return "idle";
 }
 
-/** Directive palette: quiet silver → crisp white → muted rose. Data is the hero. */
+/** Directive palette: monster silver → axe green → angry-birds rage red. */
 const TONE_TEXT: Record<Tone, string> = {
-  idle: "text-slate-500",
-  active: "text-slate-100",
-  error: "text-rose-200/90",
+  idle: "text-[#e2e8f0]/45",
+  active: "text-white",
+  error: "text-[#ff0800] font-semibold drop-shadow-[0_0_8px_rgba(255,8,0,0.5)]",
 };
 
 const TONE_TAG: Record<Tone, string> = {
-  idle: "text-slate-600",
-  active: "text-sky-200/70",
-  error: "text-rose-300/70",
+  idle: "text-[#e2e8f0]/40",
+  active: "text-[#00f0ff] drop-shadow-[0_0_6px_rgba(0,240,255,0.5)]",
+  error: "text-[#ff0800]",
 };
 
 const TONE_RAIL: Record<Tone, string> = {
-  idle: "border-l-white/[0.07]",
-  active: "border-l-sky-200/40",
-  error: "border-l-rose-300/50",
+  idle: "border-l-white/40",
+  active: "border-l-[#39ff14]",
+  error: "border-l-[#ff0800]",
 };
 
 const TONE_CHIP: Record<Tone, string> = {
-  idle: "border-white/[0.08] bg-white/[0.03] text-slate-500",
-  active: "border-white/15 bg-white/[0.06] text-slate-200",
-  error: "border-rose-300/25 bg-rose-400/[0.08] text-rose-200/90",
+  idle: "border-white/40 bg-white/[0.04] text-[#e2e8f0]/60",
+  active: "border-[#39ff14]/60 bg-[#39ff14]/[0.1] text-[#39ff14]",
+  error: "border-[#ff0800]/60 bg-[#ff0800]/[0.12] text-[#ff0800]",
 };
 
 /** Clipboard affordance icons (inline SVG — no icon dependency). */
@@ -218,18 +218,18 @@ export default function AgentTerminal({
   return (
     <section
       aria-label="Live agent log stream"
-      className="terminal-console relative border-t border-white/[0.06] bg-black/30 backdrop-blur-xl"
+      className="terminal-console frost-sheen relative border-t border-white/40 bg-black/50 backdrop-blur-2xl"
     >
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#39ff14] to-transparent shadow-[0_0_12px_rgba(57,255,20,0.6)]" />
 
       {/* Terminal title bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-7">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[#ff5f57]/50" />
-          <span className="h-2 w-2 rounded-full bg-[#febc2e]/50" />
-          <span className="h-2 w-2 rounded-full bg-[#28c840]/50" />
-          <span className="ml-3 font-mono text-[10px] font-medium tracking-[0.28em] text-slate-500 uppercase">
-            agent-stream.log
+          <span className="h-2 w-2 rounded-full bg-[#ff0800]/90 shadow-[0_0_8px_rgba(255,8,0,0.8)]" />
+          <span className="h-2 w-2 rounded-full bg-[#e2e8f0]/70" />
+          <span className="h-2 w-2 rounded-full bg-[#39ff14]/90 shadow-[0_0_8px_rgba(57,255,20,0.8)]" />
+          <span className="ml-3 font-mono text-[10px] font-black tracking-[0.28em] text-[#e2e8f0]/80 uppercase">
+            ⚡ agent-stream.log <span className="text-[#00f0ff]">❄</span>
           </span>
           <span
             className={`ml-2 inline-flex items-center gap-2 rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium tracking-[0.2em] uppercase ${statusMeta.chipClass}`}
@@ -255,8 +255,8 @@ export default function AgentTerminal({
       </div>
 
       {error && (
-        <p className="px-5 pb-2 font-mono text-[11px] font-light tracking-[0.03em] text-rose-200/80 sm:px-7">
-          — {error}
+        <p className="px-5 pb-2 font-mono text-[11px] font-bold tracking-[0.03em] text-[#ff0800] drop-shadow-[0_0_8px_rgba(255,8,0,0.5)] sm:px-7">
+          ⚠ {error}
         </p>
       )}
 
@@ -267,9 +267,9 @@ export default function AgentTerminal({
         className={`terminal-scroll ${heightClass} overflow-y-auto px-4 pb-5 font-mono text-[12.5px] leading-[1.8] tracking-[0.01em]`}
       >
         {logs.length === 0 ? (
-          <div className="flex h-full items-center justify-center gap-2.5 text-center text-[10px] font-medium tracking-[0.3em] text-slate-600 uppercase">
-            <span className="font-light">awaiting telemetry</span>
-            <span className="caret-blink text-slate-300">▍</span>
+          <div className="flex h-full items-center justify-center gap-2.5 text-center text-[10px] font-bold tracking-[0.3em] text-[#e2e8f0]/40 uppercase">
+            <span className="font-medium">❄ awaiting thunder telemetry</span>
+            <span className="caret-blink">▍</span>
           </div>
         ) : (
           logs.map((entry, index) => {
@@ -281,36 +281,36 @@ export default function AgentTerminal({
               <div
                 key={entry.id}
                 className={[
-                  "terminal-line group flex items-start gap-3 rounded-lg border-l-2 px-2.5 py-1",
+                  "terminal-line group flex items-start gap-3 rounded-md border-l-[3px] px-2.5 py-1",
                   TONE_RAIL[tone],
                   isError
-                    ? "bg-rose-400/[0.04] hover:bg-rose-400/[0.07]"
-                    : "hover:bg-white/[0.03]",
-                  // Failures glitch; only the newest healthy line flashes.
+                    ? "bg-[#ff0800]/[0.09] shadow-[0_0_16px_rgba(255,8,0,0.2)] hover:bg-[#ff0800]/[0.14]"
+                    : "hover:bg-[#39ff14]/[0.05]",
+                  // Failures violently shake; newest healthy line springs in.
                   isError && !reduceMotion && "terminal-line-glitch",
                   !isError && isNewest && !reduceMotion && "terminal-line-new",
                 ]
                   .filter(Boolean)
                   .join(" ")}
               >
-                <span className="shrink-0 font-light text-slate-600">
+                <span className="shrink-0 font-light text-[#e2e8f0]/40">
                   {TIME_FORMATTER.format(entry.receivedAt)}
                 </span>
-                <span className={`w-[64px] shrink-0 font-medium uppercase ${TONE_TAG[tone]}`}>
+                <span className={`w-[64px] shrink-0 font-black uppercase ${TONE_TAG[tone]}`}>
                   {entry.level}
                 </span>
-                <span className="shrink-0 font-light text-slate-400">
+                <span className="shrink-0 font-bold text-[#e2e8f0]/70">
                   {entry.agent}
                 </span>
                 {entry.status && (
                   <span
-                    className={`shrink-0 rounded-md border px-1.5 py-px text-[10px] font-medium ${TONE_CHIP[tone]}`}
+                    className={`shrink-0 rounded border px-1.5 py-px text-[10px] font-black ${TONE_CHIP[tone]}`}
                   >
                     {entry.status}
                   </span>
                 )}
-                <span className={`min-w-0 font-light break-words ${TONE_TEXT[tone]}`}>
-                  {entry.action}
+                <span className={`min-w-0 font-medium break-words ${TONE_TEXT[tone]}`}>
+                  {isError ? `⚠ ${entry.action}` : entry.action}
                 </span>
 
                 {/* Copy affordance: revealed on hover, and left faintly visible
@@ -324,11 +324,11 @@ export default function AgentTerminal({
                       : `Copy log line from ${entry.agent}`
                   }
                   className={[
-                    "mt-0.5 ml-auto shrink-0 self-start rounded-md border border-white/[0.08] bg-white/[0.03] p-1 text-slate-500 transition-all duration-200 hover:border-white/20 hover:text-slate-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-sky-200/40 focus-visible:outline-none",
+                    "mt-0.5 ml-auto shrink-0 self-start rounded border border-white/40 bg-white/[0.05] p-1 text-[#e2e8f0]/60 transition-all duration-200 hover:border-[#39ff14] hover:text-[#39ff14] hover:scale-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#39ff14]/50 focus-visible:outline-none",
                     copiedId === entry.id
-                      ? "border-white/20 text-slate-100 opacity-100"
+                      ? "border-[#39ff14] text-[#39ff14] opacity-100"
                       : isError
-                        ? "opacity-50 group-hover:opacity-100"
+                        ? "opacity-60 group-hover:opacity-100"
                         : "opacity-0 group-hover:opacity-100",
                   ].join(" ")}
                 >
