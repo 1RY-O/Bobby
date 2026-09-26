@@ -42,44 +42,114 @@ export interface AgentLog {
   type: string;
 }
 
-export const AGENT_STREAM_URL =
-  process.env.NEXT_PUBLIC_AGENT_STREAM_URL ?? "/ws/agent-stream";
-
-export const WORKFLOW_START_URL =
-  process.env.NEXT_PUBLIC_WORKFLOW_START_URL ?? "/api/start-workflow";
+/**
+ * Endpoints appended to the configured base origins. Kept here (not inlined at
+ * call sites) so the env contract and the paths it resolves to live together.
+ */
+export const API_PATH = "/api/start-workflow";
+export const AGENT_STREAM_PATH = "/ws/agent-stream";
 
 /**
- * Sentinel used when the stream URL is explicitly blank (fail closed).
- * Fail-closed rule: explicit empty env (`NEXT_PUBLIC_AGENT_STREAM_URL=""`)
- * disables the live stream so production never silently falls back to a
- * hardcoded `ws://localhost` bundle value.
+ * Sentinel returned when a base origin is missing, blank, unparsable or
+ * carries a scheme the browser cannot use. Fail-closed: without a configured
+ * absolute origin the UI shows an explicit configuration error rather than
+ * silently building a URL that would 404 against the frontend host.
  */
 export const AGENT_STREAM_UNCONFIGURED = "__AGENT_STREAM_UNCONFIGURED__";
+
+/** Trim whitespace and every trailing slash from a configured origin. */
+export function stripTrailingSlashes(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+/**
+ * Base origins of the API and the agent stream.
+ *
+ * These MUST be read as direct `process.env.NEXT_PUBLIC_*` member accesses.
+ * Next.js performs a literal, per-identifier substitution at build time; it does
+ * not inline a computed lookup such as `process.env[name]` or a
+ * `process.env[dynamicKey]` helper, so that form silently evaluates to
+ * `undefined` in the client bundle and the app would fail closed on a
+ * correctly-configured deployment. Keep the accesses static.
+ */
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+export const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL ?? "";
+
+/** Full workflow endpoint: `${NEXT_PUBLIC_API_URL}/api/start-workflow`. */
+export const WORKFLOW_START_URL = resolveApiUrl(stripTrailingSlashes(API_BASE_URL));
+
+/** Full agent-stream endpoint: `${NEXT_PUBLIC_WS_URL}/ws/agent-stream`. */
+export const AGENT_STREAM_URL = resolveAgentStreamUrl(
+  stripTrailingSlashes(WS_BASE_URL),
+);
 
 /** Generic, non-disclosing transport failure shown in the UI. */
 export const AGENT_STREAM_ERROR_MESSAGE =
   "agent stream unavailable (E_CONN) — retrying";
 
-/** Normalize a configured/env stream URL into an absolute WS URL. */
+/**
+ * Join a configured base origin with an endpoint path, normalising the seam
+ * so a trailing slash in the env var can never produce `//api/...` (a 404 on
+ * most proxies) or a missing separator.
+ */
+function joinEndpoint(base: string, path: string): string | null {
+  const cleanBase = stripTrailingSlashes(base);
+  if (!cleanBase) return null;
+  try {
+    const url = new URL(cleanBase);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    url.pathname = stripTrailingSlashes(url.pathname) + path;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** True when the workflow POST endpoint is not configured (fail closed). */
+export function isApiUrlUnconfigured(url: string): boolean {
+  return url === AGENT_STREAM_UNCONFIGURED;
+}
+
+/**
+ * Normalize the configured stream base into an absolute `ws(s)://…/ws/agent-stream`.
+ *
+ * - `http(s)` bases are upgraded to `ws(s)` (https → wss, never a downgrade).
+ * - `ws://` / `wss://` bases are accepted as-is.
+ * - A base that already includes the path is left alone (idempotent).
+ * - Anything else — blank, relative, or a non-http(s) scheme like `javascript:`
+ *   or the literal `null` — returns the sentinel so the UI surfaces E_CONFIG.
+ */
 export function resolveAgentStreamUrl(raw: string): string {
-  const value = raw.trim();
+  const value = stripTrailingSlashes(raw);
   if (!value) return AGENT_STREAM_UNCONFIGURED;
 
-  // Same-origin app-router path (default): derive ws(s) from page location.
-  if (value.startsWith("/")) {
-    if (typeof window === "undefined") return value;
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}${value}`;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return AGENT_STREAM_UNCONFIGURED;
   }
 
-  if (value.startsWith("ws://") || value.startsWith("wss://")) return value;
-
-  // Explicit http(s) backend URL: upgrade the scheme to ws(s).
-  if (value.startsWith("http://") || value.startsWith("https://")) {
-    return value.replace(/^http/, "ws");
+  if (url.protocol === "https:") url.protocol = "wss:";
+  else if (url.protocol === "http:") url.protocol = "ws:";
+  else if (url.protocol !== "ws:" && url.protocol !== "wss:") {
+    return AGENT_STREAM_UNCONFIGURED;
   }
 
-  return AGENT_STREAM_UNCONFIGURED;
+  const path = stripTrailingSlashes(url.pathname);
+  if (!path.endsWith(AGENT_STREAM_PATH)) {
+    url.pathname = path + AGENT_STREAM_PATH;
+  }
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+/** Resolve the workflow POST endpoint from an API base origin. */
+export function resolveApiUrl(raw: string): string {
+  return joinEndpoint(raw, API_PATH) ?? AGENT_STREAM_UNCONFIGURED;
 }
 
 /** True when the stream must not be attempted (explicitly unconfigured). */
@@ -87,11 +157,15 @@ export function isAgentStreamUnconfigured(url: string): boolean {
   return url === AGENT_STREAM_UNCONFIGURED;
 }
 
-/** Never upgrade an https page to a plaintext ws:// socket. */
+/**
+ * Never upgrade an https page to a plaintext ws:// socket (mixed content),
+ * and never let a plaintext page open a wss:// socket in dev.
+ */
 export function isAgentStreamUrlAllowed(url: string): boolean {
   if (typeof window === "undefined") return true;
-  if (window.location.protocol !== "https:") return true;
-  return url.startsWith("wss://");
+  if (isAgentStreamUnconfigured(url)) return false;
+  const pageIsSecure = window.location.protocol === "https:";
+  return pageIsSecure ? url.startsWith("wss://") : true;
 }
 
 /** Give up on the start-workflow request after this long. */

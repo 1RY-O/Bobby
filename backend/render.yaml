@@ -1,0 +1,56 @@
+# Render blueprint — Bobby backend (FastAPI + LangGraph)
+#
+# The frontend deploys separately to Vercel, so this service is a standalone
+# cross-origin API + WebSocket origin. Configure the two public env vars in the
+# Render dashboard (or via `render env:` below) to match the deployed frontend.
+#
+#   Vercel: NEXT_PUBLIC_API_URL = https://<this-service>.onrender.com
+#           NEXT_PUBLIC_WS_URL   = https://<this-service>.onrender.com
+#   Render: FRONTEND_ORIGIN    = https://<your-app>.vercel.app
+#   Render: APP_ENV            = production
+
+services:
+  - type: web
+    name: bobby-backend
+    runtime: python
+    plan: starter # WebSockets require a long-lived process; free instances spin
+    # down after inactivity and drop every open agent stream.
+
+    # --- Build & start ------------------------------------------------------
+    # Render injects PORT (dynamic) at runtime. The process must bind 0.0.0.0
+    # (not 127.0.0.1) or Render's load balancer cannot reach it, and must read
+    # the assigned $PORT rather than hardcoding 8000.
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: >
+      uvicorn main:app
+      --host 0.0.0.0
+      --port $PORT
+      --workers 1
+      --log-level info
+    # Single worker: the graph and the in-memory connection manager / rate-limit
+    # buckets are per-process state, so a second worker would split the agent
+    # stream across processes. Scale vertically or move state to a shared store
+    # before raising this.
+
+    healthCheckPath: /health
+
+    # --- Environment --------------------------------------------------------
+    envVars:
+      - key: APP_ENV
+        value: production
+      # REQUIRED in production. The Vercel origin, no trailing slash. A comma
+      # list is accepted for multi-origin setups (e.g. preview deploys); the
+      # value here is a placeholder — override it with your real Vercel URL.
+      - key: FRONTEND_ORIGIN
+        sync: false
+      # Origin allowlist is strict and defaults to deny-all when unset, so the
+      # service boots but serves no cross-origin traffic until this is set.
+      #
+      # Optional tuning (sensible defaults already baked into main.py):
+      #   RATE_LIMIT_REQUESTS=5
+      #   RATE_LIMIT_WINDOW_SECONDS=60
+      #   MAX_CONCURRENT_WORKFLOWS=4
+      #   GZIP_MINIMUM_SIZE=1024
+      #   MAX_REQUEST_BODY_BYTES=65536
+      #   MAX_ECHOED_MESSAGES=0
+      #   DEV_RELOAD=false            # ignored when APP_ENV=production

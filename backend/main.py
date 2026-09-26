@@ -79,7 +79,15 @@ def _env_int(name: str, default: int, *, minimum: int = 0, maximum: int | None =
 
 def _env_list(name: str, default: str) -> List[str]:
     """Comma-separated env list, whitespace-trimmed, empties dropped."""
-    raw = os.getenv(name) or default
+    return _env_list_raw(os.getenv(name) or default)
+
+
+def _env_list_raw(raw: str) -> List[str]:
+    """Normalise a comma-separated list into bare origins.
+
+    Trailing slashes are stripped so a configured `https://bobby.vercel.app/`
+    still matches the `Origin: https://bobby.vercel.app` a browser sends.
+    """
     return [item.strip().rstrip("/") for item in raw.split(",") if item.strip()]
 
 
@@ -88,10 +96,50 @@ def _env_list(name: str, default: str) -> List[str]:
 APP_ENV = (os.getenv("APP_ENV") or "development").strip().lower()
 IS_PRODUCTION = APP_ENV in {"production", "prod"}
 
-# Only these origins may call the API. Defaults to the local dev server; a
-# deployed instance MUST set FRONTEND_ORIGINS explicitly.
-FRONTEND_ORIGINS = _env_list("FRONTEND_ORIGINS", "http://localhost:3000")
-FRONTEND_ORIGIN = FRONTEND_ORIGINS[0]  # backwards-compatible single-origin view
+# Defined up front: the origin allowlist below logs during module import, and
+# keeping the logger ahead of every config reader removes the import-order
+# hazard that previously only worked by accident (a malformed int env var
+# would have raised NameError on `logger`).
+logger = logging.getLogger(APP_NAME)
+
+
+def _frontend_origins() -> List[str]:
+    """Resolve the strict frontend allowlist from the environment.
+
+    `FRONTEND_ORIGIN` (singular) is the documented production variable — the
+    deployed Vercel origin, e.g. `https://bobby.vercel.app`. `FRONTEND_ORIGINS`
+    (plural, comma-separated) is still honoured for multi-origin setups such as
+    preview deployments, with the singular value taking precedence when both
+    are set.
+
+    Entries are normalised to bare origins (scheme + host + optional port, no
+    trailing slash) so they compare byte-for-byte against the `Origin` header a
+    browser sends, which never carries a trailing slash or a path.
+    """
+    configured = os.getenv("FRONTEND_ORIGIN") or os.getenv("FRONTEND_ORIGINS") or ""
+    origins = _env_list_raw(configured)
+    if origins:
+        return origins
+
+    if IS_PRODUCTION:
+        # Fail closed, not closed-with-a-wildcard: an unset allowlist must deny
+        # every cross-origin caller rather than trust all of them. The process
+        # still boots so /health answers and the deploy is diagnosable, but no
+        # browser can reach the API or the agent stream until the var is set.
+        logger.error(
+            "FRONTEND_ORIGIN is not set in production; denying all cross-origin "
+            "requests. Set FRONTEND_ORIGIN to the deployed frontend origin."
+        )
+        return []
+
+    # Development convenience only — never reachable in production.
+    return ["http://localhost:3000"]
+
+
+# Only these origins may call the API. Empty in production when unconfigured,
+# which denies everything (see _frontend_origins).
+FRONTEND_ORIGINS = _frontend_origins()
+FRONTEND_ORIGIN = FRONTEND_ORIGINS[0] if FRONTEND_ORIGINS else ""
 
 ALLOWED_METHODS = ["GET", "POST", "OPTIONS"]
 ALLOWED_HEADERS = ["Accept", "Content-Type"]
@@ -266,16 +314,32 @@ def _client_ip(request: Request) -> str:
 
 
 def is_origin_allowed(origin: str | None) -> bool:
-    """True when ``origin`` is one of the configured frontend origins.
+    """True when ``origin`` strictly matches a configured frontend origin.
 
-    A missing/empty Origin is treated as allowed: browsers always send Origin on
-    a cross-origin WebSocket handshake, so its absence indicates a non-browser
-    client (the integration test harness, curl, a service worker on a same-origin
-    page) rather than an attempt to bypass the check.
+    In production this is a strict allowlist:
+
+    - An empty allowlist (FRONTEND_ORIGIN unset) denies everything.
+    - A missing/blank ``Origin`` is DENIED. Browsers always send it on a
+      cross-origin WebSocket handshake, so its absence is never a legitimate
+      browser case — allowing it would hand out a bypass key to any non-browser
+      caller. Development keeps the permissive behaviour so the integration
+      harness (plain `websockets` client, curl) can still connect.
+    - The literal ``null`` origin (sandboxed iframe / privacy-resisting mode) is
+      always denied: it is not a match for any configured value and must not be
+      treated as "absent".
+
+    Comparison is exact against the normalised allowlist, which is why the
+    configured values are stored without trailing slashes.
     """
-    if not origin:
-        return True
-    return origin.strip().rstrip("/") in FRONTEND_ORIGINS
+    if not FRONTEND_ORIGINS:
+        return False
+
+    candidate = (origin or "").strip().rstrip("/")
+    if not candidate:
+        return not IS_PRODUCTION
+    if candidate.lower() == "null":
+        return False
+    return candidate in FRONTEND_ORIGINS
 
 
 def check_rate_limit(key: str) -> Tuple[bool, int]:
@@ -378,7 +442,16 @@ app.add_middleware(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=FRONTEND_ORIGINS,  # explicit allowlist, never "*"
+    # Exact-match allowlist, never "*". Starlette compares the incoming `Origin`
+    # header verbatim against these values, which is precisely why
+    # `_frontend_origins()` stores them normalised (no trailing slash): a browser
+    # serialises `Origin` without one, so a configured
+    # `https://bobby.vercel.app/` must be stored as `https://bobby.vercel.app`
+    # to match. Note the WebSocket check in `is_origin_allowed` additionally
+    # normalises the *incoming* value before comparing, so the two layers differ
+    # for a hand-crafted trailing slash; that is intentional and harmless because
+    # no browser emits one.
+    allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=ALLOWED_METHODS,
     allow_headers=ALLOWED_HEADERS,
@@ -594,13 +667,22 @@ async def agent_stream(websocket: WebSocket) -> None:
 
     The upgrade is origin-checked first: an agent stream carries repo URLs, file
     paths and diffs, so it must not be reachable by an arbitrary third-party
-    page. A browser always sends ``Origin`` on a cross-origin WS handshake, so a
-    disallowed value is closed with 1008 (policy violation) before ``accept()``.
+    page. In production the incoming ``Origin`` must strictly equal a configured
+    frontend origin, and a browser always sends it on a cross-origin handshake
+    — so a missing or mismatched value is closed with 1008 (policy violation).
     """
     if not is_origin_allowed(websocket.headers.get("origin")):
         logger.warning("rejected agent-stream upgrade from disallowed origin")
-        # 1008 = Policy Violation. Close before accepting so the socket is never
-        # registered in the connection manager.
+        # 1008 = Policy Violation, delivered as a real close frame.
+        #
+        # A `close()` issued *before* `accept()` never reaches the client as a
+        # close code: the ASGI server answers the upgrade with a bare HTTP 403
+        # instead (verified against uvicorn). Accepting first is what makes the
+        # documented 1008 observable to the peer, and it stays safe because the
+        # socket is closed immediately, is never passed to `manager.connect`,
+        # and never receives a single stream frame.
+        with contextlib.suppress(Exception):
+            await websocket.accept()
         with contextlib.suppress(Exception):
             await websocket.close(code=1008)
         return

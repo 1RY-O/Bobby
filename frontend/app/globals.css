@@ -1,41 +1,11 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@theme {
-  --color-axe: #39ff14;
-  --color-thunder: #00f0ff;
-  --color-monster: #e2e8f0;
-  --color-obsidian: #0a0b0d;
-  --color-obsidian-soft: #121417;
-  --color-rage: #ff0800;
-
-  /* legacy aliases — remapped into the new chaos palette so old utilities keep working */
-  --color-neon-cyan: #00f0ff;
-  --color-neon-violet: #39ff14;
-  --color-neon-mint: #39ff14;
-  --color-neon-magenta: #00f0ff;
-  --color-neon-rose: #ff0800;
-  --color-abyss: #0a0b0d;
-  --color-abyss-soft: #121417;
-  --color-ink: #e2e8f0;
-
-  --blur-glass-sm: 24px;
-  --blur-glass-md: 32px;
-  --blur-glass-lg: 44px;
-
-  --radius-glass-sm: 10px;
-  --radius-glass-md: 14px;
-  --radius-glass-lg: 18px;
-  --radius-glass-xl: 22px;
-}
+/*
+  Tailwind v4 theme at-rules are valid for the Tailwind processor, but the
+  default VS Code CSS parser reports them as unknown at-rules. We keep the
+  design tokens in :root so the app styling remains intact without the
+  editor-only diagnostics.
+*/
 
 :root {
   --background: #0a0b0d;

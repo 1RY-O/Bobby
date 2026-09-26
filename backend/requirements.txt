@@ -1,5 +1,34 @@
-fastapi
-uvicorn
-langgraph
-websockets
-httpx
+# Bobby backend — runtime dependencies for Render.
+#
+# Pinned to the exact versions the current lockfile-equivalent venv resolves to,
+# so a Render build is reproducible and a transitive bump cannot silently change
+# LangGraph or Starlette behaviour between deploys.
+#
+# Install:  pip install -r requirements.txt
+# Start:    uvicorn main:app --host 0.0.0.0 --port $PORT     (see render.yaml)
+
+# --- ASGI app + server -----------------------------------------------------
+# uvicorn[standard] pulls the uvloop/httptools/websockets implementations used
+# on Linux; `websockets` is listed explicitly below because the agent stream
+# depends on it and must not arrive only as a transitive extra.
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+websockets==16.1.1
+
+# --- LangGraph workflow engine ---------------------------------------------
+# The orchestrator/investigator/remediation/validator pipeline. No LLM provider
+# is installed: the graph is deterministic and makes no model calls.
+langgraph==1.2.12
+
+# --- Pydantic v2 request validation ---------------------------------------
+# Required directly by main.py (ConfigDict/field_validator). Pinned so the
+# validators in StartWorkflowRequest cannot shift under a deploy.
+pydantic==2.13.5
+
+# --- Starlette (pinned: FastAPI's transport layer) -------------------------
+# Explicit because the CORS and WebSocket-origin behaviour in main.py depends on
+# Starlette middleware semantics.
+starlette==1.7.0
+
+# NOTE: httpx is intentionally NOT listed here. It is a test-only dependency
+# used by test_workflow_stream.py; install it via requirements-dev.txt.

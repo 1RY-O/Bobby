@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN ?? "http://localhost:8000";
-
 /**
  * `next dev` needs eval for React Fast Refresh and inline/eval'd scripts for
  * the HMR runtime, and it may talk to a backend on any local port. None of that
@@ -11,44 +9,50 @@ const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN ?? "http://localhost:8000";
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 /**
- * Backend origin reduced to scheme + host + port, for `connect-src`.
- *
- * The browser only ever talks to the backend directly when a NEXT_PUBLIC_*
- * override bypasses the same-origin proxy. With the default deployment the
- * page calls same-origin /api and /ws, which 'self' already covers, so nothing
- * needs to be added. Keeping this conditional stops the policy from quietly
- * widening to a second origin that the app never actually calls.
+ * Configured backend origins, read from the same env vars the browser bundle
+ * uses. These exist so the CSP can allowlist exactly the hosts the app will
+ * actually contact — the browser talks to Render directly (cross-domain), so
+ * `connect-src` must name those origins explicitly.
  */
-const CROSS_ORIGIN_BACKEND = (() => {
-  const overridden = Boolean(
-    process.env.NEXT_PUBLIC_WORKFLOW_START_URL ||
-      process.env.NEXT_PUBLIC_AGENT_STREAM_URL,
-  );
-  if (!overridden) return null;
-  try {
-    return new URL(BACKEND_ORIGIN).origin;
-  } catch {
-    return null;
-  }
-})();
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
+const WS_BASE_URL = (process.env.NEXT_PUBLIC_WS_URL ?? "").trim();
 
+/**
+ * `connect-src` allowlist: the configured API + WebSocket origins (scheme +
+ * host only), plus the same dev-only relaxations. No wildcard and no bare
+ * `ws:`/`https:` in production — that would allow exfiltration to any host.
+ */
 const CONNECT_SRC = [
   "'self'",
-  ...(CROSS_ORIGIN_BACKEND ? [CROSS_ORIGIN_BACKEND] : []),
-  // Dev additionally needs raw-scheme sockets and HMR on an ephemeral port.
+  // Deduplicated: with a single Render service the API and WS origins are
+  // identical, and CSP does not need the repeat.
+  ...Array.from(
+    new Set(
+      [API_BASE_URL, WS_BASE_URL]
+        .map((value) => {
+          if (!value) return null;
+          try {
+            return new URL(value).origin;
+          } catch {
+            return null;
+          }
+        })
+        .filter((origin): origin is string => origin !== null),
+    ),
+  ),
   ...(IS_PRODUCTION
     ? []
     : [
+        // `next dev` HMR opens a socket on an ephemeral port and proxies the
+        // app through localhost; allow the usual loopback + any local port.
         "ws:",
-        "http:",
-        "https:",
+        "wss:",
         "http://localhost:*",
         "https://localhost:*",
         "http://127.0.0.1:*",
         "https://127.0.0.1:*",
       ]),
 ].join(" ");
-
 
 /**
  * Defense-in-depth response headers for every route.
@@ -59,9 +63,9 @@ const CONNECT_SRC = [
  *   with inline style attributes.
  * - `script-src` drops `'unsafe-eval'` in production: only `next dev`'s Fast
  *   Refresh needs it, and eval is a direct XSS-to-RCE primitive.
- * - `connect-src` is same-origin in production. The browser reaches the API
- *   through the Next proxy, so no backend host needs to be allowlisted unless
- *   the app is configured to call the backend cross-origin.
+ * - `connect-src` names the explicit Render origins (see above) in addition
+ *   to `'self'`, because the browser opens the WebSocket and POSTs directly
+ *   cross-domain. There is no Next proxy in front of them.
  * - `frame-ancestors 'none'` blocks clickjacking by refusing to be iframed.
  */
 const SECURITY_HEADERS = [
@@ -104,30 +108,16 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   /**
-   * Same-origin escape hatch for the workflow API.
+   * No rewrites / proxying.
    *
-   * The dashboard POSTs to NEXT_PUBLIC_WORKFLOW_START_URL, which defaults to
-   * the same-origin path /api/start-workflow. Next.js proxies it server-side
-   * to BACKEND_ORIGIN so the browser never needs a cross-origin request (and
-   * production never ships a hardcoded localhost URL in the bundle).
-   * Set NEXT_PUBLIC_WORKFLOW_START_URL only to override (e.g. direct backend).
+   * The frontend (Vercel) and the backend (Render) are separate origins and
+   * the browser talks to the backend directly via NEXT_PUBLIC_API_URL /
+   * NEXT_PUBLIC_WS_URL. Proxying /api and /ws through the Next server would
+   * (a) reintroduce a same-origin fallback that 404s the moment the env vars
+   * are missing and (b) not actually work for the WebSocket on a serverless
+   * runtime anyway. The CSP above is the single source of truth for which
+   * backend origins the browser may reach.
    */
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${BACKEND_ORIGIN}/api/:path*`,
-      },
-      {
-        // Same-origin WebSocket proxy: the browser opens
-        // ws(s)://<host>/ws/agent-stream and Next forwards the upgrade to the
-        // FastAPI backend, keeping the bundle free of hardcoded backend URLs.
-        source: "/ws/:path*",
-        destination: `${BACKEND_ORIGIN}/ws/:path*`,
-      },
-    ];
-  },
-
   async headers() {
     return [
       {

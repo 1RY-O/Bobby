@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 import time
@@ -151,6 +152,7 @@ async def run_checks() -> None:
     await check_ws_origin_guard()
     await check_ws_connection_cap()
     await check_idle_reaping()
+    await check_production_origin_policy()
 
 
 async def check_security_hardening() -> None:
@@ -250,8 +252,9 @@ async def check_security_hardening() -> None:
 async def check_ws_origin_guard() -> None:
     """The agent stream only upgrades for a configured frontend origin.
 
-    A rejected handshake must close before ``accept()``, so the socket never
-    reaches the connection manager.
+    A rejected handshake is answered with a real 1008 (Policy Violation) close
+    frame, and the socket is never handed to the connection manager or sent a
+    single stream frame.
     """
     import websockets
 
@@ -263,15 +266,23 @@ async def check_ws_origin_guard() -> None:
         assert hello.get("status") == "connected", hello
     print(f"PASS agent stream accepts configured origin {good!r}")
 
+    # 1008 = Policy Violation. Asserted on the close code, not merely that the
+    # socket ended: closing before accept() would surface as a bare HTTP 403
+    # with no close code at all, which is a different (and undocumented) result.
     for hostile in ("http://evil.tld", "https://evil.tld", "null", "http://localhost:1337"):
-        closed = False
+        code = None
         try:
             async with websockets.connect(BASE_WS, origin=hostile) as ws:
                 await asyncio.wait_for(ws.recv(), timeout=5)
-        except Exception:
-            closed = True
-        assert closed, f"agent stream accepted hostile origin {hostile!r}"
-    print("PASS agent stream rejects non-allowlisted origins (1008 before accept)")
+        except websockets.exceptions.ConnectionClosed as exc:
+            code = exc.code
+        except Exception as exc:  # handshake-level failure, not a 1008 close
+            raise AssertionError(
+                f"origin {hostile!r} was refused without a 1008 close frame: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        assert code == 1008, f"origin {hostile!r} closed with {code}, expected 1008"
+    print("PASS agent stream rejects non-allowlisted origins with close code 1008")
 
     # A rejected upgrade must not be counted as an active connection.
     async with httpx.AsyncClient() as client:
@@ -329,6 +340,127 @@ async def check_idle_reaping() -> None:
     assert fresh.closed_with is None, fresh.closed_with
     assert list(manager._connections) == [fresh], manager._connections
     print(f"PASS idle sockets reaped after {ConnectionManager.IDLE_TIMEOUT_SECONDS:.0f}s")
+
+
+async def check_production_origin_policy() -> None:
+    """APP_ENV=production enforces a strict, fail-closed frontend allowlist.
+
+    Runs against a throwaway production-mode server on its own port, because the
+    allowlist is resolved once at import time and the shared dev server is
+    already running with the development default.
+    """
+    import websockets
+
+    port = BASE_PORT + 1
+    base_http = f"http://{BASE_HOST}:{port}"
+    base_ws = f"ws://{BASE_HOST}:{port}/ws/agent-stream"
+    backend_dir = Path(__file__).resolve().parent
+
+    async def serve(frontend_origin: str) -> subprocess.Popen:
+        env = {
+            **os.environ,
+            "APP_ENV": "production",
+            # Trailing slash on purpose: it must be normalised away, since a
+            # browser never sends one.
+            "FRONTEND_ORIGIN": frontend_origin,
+        }
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "main:app", "--host", BASE_HOST, "--port", str(port)],
+            cwd=str(backend_dir),
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        for _ in range(100):
+            try:
+                async with httpx.AsyncClient() as client:
+                    if (await client.get(f"{base_http}/health", timeout=1.0)).status_code == 200:
+                        return proc
+            except Exception:
+                await asyncio.sleep(0.1)
+        proc.kill()
+        raise AssertionError("production-mode server did not become healthy")
+
+    async def stop(proc: subprocess.Popen) -> None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+    # --- 1. configured allowlist is strict -------------------------------
+    # FRONTEND_ORIGIN is configured WITH a trailing slash; the point is that it
+    # gets normalised so it matches the exact `Origin` a browser sends.
+    proc = await serve("https://bobby.vercel.app/")
+    try:
+        async with httpx.AsyncClient() as client:
+            for origin, allowed in (
+                ("https://bobby.vercel.app", True),
+                ("https://bobby.vercel.app.evil.tld", False),  # suffix-lookalike
+                ("https://evil.tld", False),
+                ("http://bobby.vercel.app", False),  # scheme must match
+                ("https://bobby.vercel.app:443", False),  # no implicit-port normalisation
+            ):
+                pre = await client.options(
+                    f"{base_http}/api/start-workflow",
+                    headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
+                )
+                acao = pre.headers.get("access-control-allow-origin")
+                if allowed:
+                    assert acao == origin, f"expected ACAO {origin!r}, got {acao!r}"
+                else:
+                    assert not acao, f"origin {origin!r} was wrongly allowed: {acao!r}"
+        print("PASS production CORS matches FRONTEND_ORIGIN exactly (configured trailing slash normalised)")
+
+        # A missing Origin is a real browser impossibility cross-origin, so in
+        # production it must be denied rather than treated as "absent".
+        for label, origin in (("no Origin", None), ("null origin", "null"), ("empty Origin", "")):
+            code = None
+            try:
+                async with websockets.connect(base_ws, origin=origin) as ws:
+                    await asyncio.wait_for(ws.recv(), timeout=5)
+            except websockets.exceptions.ConnectionClosed as exc:
+                code = exc.code
+            except Exception as exc:
+                raise AssertionError(f"{label} refused without a 1008 close: {exc!r}") from exc
+            assert code == 1008, f"{label} closed with {code}, expected 1008"
+        print("PASS production WS denies missing/null/empty Origin with close code 1008")
+
+        async with httpx.AsyncClient() as client:
+            health = await client.get(f"{base_http}/health")
+        assert health.json()["active_streams"] == 0, health.text
+        # Production must not expose the OpenAPI surface.
+        async with httpx.AsyncClient() as client:
+            docs = await client.get(f"{base_http}/docs")
+            schema = await client.get(f"{base_http}/openapi.json")
+        assert docs.status_code == 404, f"/docs exposed in production: {docs.status_code}"
+        assert schema.status_code == 404, f"/openapi.json exposed in production: {schema.status_code}"
+        print("PASS production hides /docs and /openapi.json")
+    finally:
+        await stop(proc)
+
+    # --- 2. unset allowlist fails CLOSED, never open ---------------------
+    proc = await serve("")  # FRONTEND_ORIGIN="" -> unset path
+    try:
+        async with httpx.AsyncClient() as client:
+            pre = await client.options(
+                f"{base_http}/api/start-workflow",
+                headers={"Origin": "https://bobby.vercel.app", "Access-Control-Request-Method": "POST"},
+            )
+            assert not pre.headers.get("access-control-allow-origin"), (
+                "production allowed a cross-origin preflight with FRONTEND_ORIGIN unset"
+            )
+        for origin in ("https://bobby.vercel.app", "http://localhost:3000"):
+            code = None
+            try:
+                async with websockets.connect(base_ws, origin=origin) as ws:
+                    await asyncio.wait_for(ws.recv(), timeout=5)
+            except websockets.exceptions.ConnectionClosed as exc:
+                code = exc.code
+            assert code == 1008, f"origin {origin!r} closed with {code}, expected 1008"
+        print("PASS production with unset FRONTEND_ORIGIN denies all cross-origin traffic (fail closed)")
+    finally:
+        await stop(proc)
 
 
 def main() -> int:

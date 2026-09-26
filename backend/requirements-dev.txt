@@ -1,0 +1,11 @@
+# Bobby backend — development/test dependencies.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# These are NOT installed on Render; the runtime service needs only
+# requirements.txt.
+
+# Test client for the end-to-end workflow + security harness
+# (test_workflow_stream.py drives /health, /api/start-workflow and the agent
+# stream over HTTP/WebSocket).
+httpx==0.28.1

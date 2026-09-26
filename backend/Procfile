@@ -1,0 +1,10 @@
+# Render/Heroku-style process declaration.
+#
+# Render reads `render.yaml` first; this Procfile is the portable equivalent
+# used by other PaaS providers and by `honcho start` locally.
+#
+# Bind 0.0.0.0 so the load balancer can reach the process, and read the
+# dynamically assigned $PORT rather than hardcoding a port. Note that this
+# expands the variable, so it must be run through a shell (sh -c) — Render does
+# this automatically for startCommand.
+web: sh -c 'exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info'

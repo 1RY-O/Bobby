@@ -26,6 +26,7 @@ import {
   isActiveStatus,
   isAgentStreamUnconfigured,
   isAgentStreamUrlAllowed,
+  isApiUrlUnconfigured,
   isFinishedStatus,
   matchAgentToNode,
   normalizeAgentId,
@@ -278,7 +279,7 @@ export default function NexusDashboard({ glassActive = true }: NexusDashboardPro
       if (isAgentStreamUnconfigured(streamUrl)) {
         setConnectionStatus("closed");
         setStreamError(
-          "agent stream is not configured (E_CONFIG) — set NEXT_PUBLIC_AGENT_STREAM_URL",
+          "agent stream is not configured (E_CONFIG) — set NEXT_PUBLIC_WS_URL",
         );
         return;
       }
@@ -372,6 +373,20 @@ export default function NexusDashboard({ glassActive = true }: NexusDashboardPro
       () => controller.abort(),
       WORKFLOW_REQUEST_TIMEOUT_MS,
     );
+
+    // Fail closed rather than POSTing to an unresolved endpoint. On a decoupled
+    // deployment an unconfigured base would otherwise produce a same-origin
+    // request to the frontend host, which answers 404.
+    if (isApiUrlUnconfigured(WORKFLOW_START_URL)) {
+      clearTimeout(timeout);
+      setWorkflowStatus("error");
+      setCtaFlash("error");
+      window.setTimeout(() => setCtaFlash(null), 600);
+      setWorkflowMessage(
+        "workflow API is not configured (E_CONFIG) — set NEXT_PUBLIC_API_URL",
+      );
+      return;
+    }
 
     try {
       const response = await fetch(WORKFLOW_START_URL, {
